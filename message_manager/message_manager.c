@@ -9,7 +9,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <mysql/mysql.h>
+#include <mysql.h>
 
 #define BUF 1024
 #define UDS_FILE "/tmp/safari_sim.sock"

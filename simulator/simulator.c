@@ -29,7 +29,7 @@ int main (void) {
 
 	MapData *map = malloc(sizeof(MapData));
 
-	printf("size without intersection %lu\n", sizeof(map));
+	printf("size without TEST %lu\n", sizeof(map));
 	IntersectionGeometry *intersection = malloc(sizeof(IntersectionGeometry));
 	
 	intersection->revision = 123;

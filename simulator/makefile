@@ -1,11 +1,12 @@
 P=simulator
-OBJ=
+OBJ=$(P).o
 CC=gcc
-CFLAGS=-I./../include/
+IDIR=../include
+CFLAGS=-I$(IDIR)
 DEPS = data_elements.h map.h
-
-%.o: %.c $(DEPS)
-	$(CC) -c -o $@ $< $(CFLAGS)
 
 $(P):$(OBJ)
 	$(CC) -o simulator simulator.c $(CFLAGS)
+
+%.o: %.c $(DEPS)
+	$(CC) -c -o $@ $^ $(CFLAGS)
