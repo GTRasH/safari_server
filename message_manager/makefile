@@ -1,13 +1,13 @@
 P		= message_manager
-OBJ		= $(P).o
+FUNC	= error.o xmlNodes.o
+EXT		= $(FUNC:%.o=./../func/%.o)
+OBJ		= $(P).o $(EXT)
 CC		= gcc
-IDIR	= ../include
-CFLAGS	= `mysql_config --cflags`
-LDFLAGS	= `mysql_config --libs`
-DEPS	= data_elements.h map.h
+CFLAGS	= -Wall -g -D_REENTRANT
+LDFLAGS	= -I./../include `xml2-config --cflags` `mysql_config --cflags` `xml2-config --libs` `mysql_config --libs`
 
-$(P):$(OBJ)
-	$(CC) $(CFLAGS) -o $(P) $(OBJ) $(LDFLAGS)
-
-%.o: %.c $(DEPS)
-	$(CC) $(CFLAGS) -c $<
+$(P): $(OBJ)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $(P) $(P).o $(FUNC)
+	
+%.o: %.c
+	$(CC) $(CFLAGS) $(LDFLAGS) -c $<

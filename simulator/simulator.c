@@ -1,4 +1,4 @@
-/* uds_server.c */
+/* simulator.c */
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -9,82 +9,173 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <time.h>
 
-#include <data_elements.h>
-#include <map.h>
+#include <dirent.h>
 
-#define BUF 1024      // muss später der SPaT/MAP Nachricht angepasst werden
+#include <libxml/parser.h>
+#include <libxml/xpath.h>
+#include <libxml/tree.h>
+
+#include <list.h>
+#include <func.h>
+
 #define UDS_FILE "/tmp/safari_sim.sock"
+#define BUF 1024
+
+xmlDocPtr getdoc(char *docname);
+
+xmlDocListHead *getxmlptrlist(char *pathname);
+
+int sendMessage(int msgSocket, xmlDocPtr doc);
 
 int main (void) {
-	int create_socket, new_socket, cnt = 0;  // int Rückgabe-Werte
+	// Deklarationen
+	xmlDocListHead *mapHead;
+	xmlDocListHead *spatHead;
+	xmlDocListElement *mapElement;
+	xmlDocListElement *spatElement;
+	int createSocket, msgSocket;
 	socklen_t addrlen;
-	char *buffer = malloc (BUF), msg[50];          // alloziert BUF Byte Speicher im Adressraum
-	ssize_t size;
-	struct sockaddr_un address;	//  struct sockaddr_un {
-								//      uint8_t     sun_len;        -> Länge Struktur - Nicht POSIX   
-								//      sa_family_t sun_family;     -> PF_UNIX, AF_UNIX, PF_LOCAL...
-								//      char        sun_path[104];  -> Pfadname
-								//  };
-
-	MapData *map = malloc(sizeof(MapData));
-
-	printf("size without TEST %lu\n", sizeof(map));
-	IntersectionGeometry *intersection = malloc(sizeof(IntersectionGeometry));
+	struct sockaddr_un address;
 	
-	intersection->revision = 123;
+	// # # # Laden der Nachrichten # # #
+	fprintf(stdout, "# # # Nachrichten werden eingelesen # # #\n");
+	mapHead = getxmlptrlist("./../xml/map/");
+	if (mapHead->first->ptr == NULL)
+		return error("Error: Unable to load MAP messages\n");
 
-	map->intersections[0] = intersection;
-  
-	printf("size with 1 intersection %lu\n", sizeof(map));
-  
-	printf("revision intersection 1 = %i \n", map->intersections[0]->revision);
-  
-	if((create_socket=socket (AF_LOCAL, SOCK_STREAM, 0)) > 0)   // 
-		printf ("Socket wurde angelegt\n");
-  
-	unlink(UDS_FILE);                   // bind schlägt fehl wenn Datei bereits vorhanden
-  
-	address.sun_family = AF_LOCAL;      // Address Family LOCAL
-  
-	strcpy(address.sun_path, UDS_FILE); // Pfad des Socket-Deskriptors in die Struktur kopieren
-  
-	if (bind(create_socket, 
-			(struct sockaddr *) &address,
-			sizeof (address)) != 0) {
-				printf( "Der Port ist nicht frei – belegt?!?!\n");
-	}
+	spatHead = getxmlptrlist("./../xml/spat/");
+	if (spatHead->first->ptr == NULL)
+		return error("Error: Unable to load SPaT messages\n");
+	
+	fprintf(stdout, "- Einlesevorgang erfolgreich\n"
+					"  Es werden %lu MAP- und %lu SPaT-Nachrichten verarbeitet\n\n",
+					mapHead->size, spatHead->size);
+	// # # # Nachrichten erfolgreich geladen # # #
+	
+	// # # # Socket aufbauen, binden und auf connect warten # # #
+	fprintf(stdout, "# # # Nachrichten-Server wird gestartet # # #\n");
+	
+	
+	if((createSocket = socket(AF_LOCAL, SOCK_STREAM, 0)) <= 0)
+		return error("Error: Unable to create socket\n");
+	
+	addrlen = sizeof(struct sockaddr_in);
+	unlink(UDS_FILE);
+	address.sun_family = AF_LOCAL;
+	strcpy(address.sun_path, UDS_FILE);
+	
+	if (bind(createSocket, (struct sockaddr *) &address, sizeof(address)) != 0)
+		return error("Error: Unable to bind socket\n");
 
-	listen (create_socket, 2);  // Socket im passiven Modus und Mitteilung an System,
-                              // dass Server bereit ist Verbindungen entgegen zu nehmen.
-                              // Zweiter Parameter für Warteschlange -> Nur ein Client gleichzeitig
-	addrlen = sizeof (struct sockaddr_in);
-  
-	while (1) {
-		new_socket = accept(create_socket, (struct sockaddr *) &address, &addrlen);
-		if (new_socket > 0)
-			printf ("Ein Client ist verbunden ...\n");
-     
-		do {
-			// Nachricht zurück setzen und generieren
-			sprintf(msg, "Nachricht #%d generiert", ++cnt);
-			strcpy(buffer, msg);
-			// Nachricht übergeben  
-			send (new_socket, buffer, strlen (buffer), 0);
-			// warte auf Bestätigung
-			size = recv (new_socket, buffer, BUF, 0);
-			// terminierende Null anhängen
-			if (size > 0)
-				buffer[size] = '\0';
+	listen(createSocket, 1);
+	fprintf(stdout, "- Server wartet auf Verbindung vom Message Manager\n");
+	// # # # Simulator wartet nun auf connect # # #
+	
+//	while (1) {
+		msgSocket = accept(createSocket, (struct sockaddr *) &address, &addrlen);
+		if (msgSocket > 0)
+			fprintf(stdout, "- Message Manager verbunden\n");
+	
+//		do {
+			// MAP Nachrichten senden
+			mapElement = mapHead->first;
+			while (mapElement->ptr != NULL) {
+				setNodeValue(mapElement->ptr, "//timeStamp", int2string(time(NULL)));
+				sendMessage(msgSocket, mapElement->ptr);
+				mapElement = mapElement->next;
+				sleep(1);
+			}
+			// SPaT Nachrichten senden
+			spatElement = spatHead->first;
+			while (mapElement->ptr != NULL) {
+				setNodeValue(spatElement->ptr, "//timeStamp", int2string(time(NULL)));
+				sendMessage(msgSocket, spatElement->ptr);
+				spatElement = spatElement->next;
+				sleep(1);
+			}
+			
+			char *buffer = "quit";
+			send(msgSocket, buffer, BUF, 0);
         
-			printf("Verarbeitung %i bestätigt\n", cnt);
-
-			sleep(1);
-        
-		} while (strcmp (buffer, "complete"));
-     
-		close (new_socket);
-	}
-	close (create_socket);
+//		} while (strcmp(xmlbuff, "complete"));
+//	}
+ 	close (createSocket);
 	return EXIT_SUCCESS;
+}
+
+/** \brief Erzeugt eine Liste mit Pointern der xml-Dateien im übergebenen Pfad
+ * 
+ * \param[in] *pathname = Nachrichtenverzeichnis (SPaT oder MAP / universal)
+ * 
+ * \return	xmlDocListHead->xmlDocListElement->ptr != NULL
+ * 			xmlDocListHead->xmlDocListElement->ptr = NULL im Fehlerfall
+ * 
+ */
+xmlDocListHead *getxmlptrlist(char *pathname) {
+	// Initialisierung Verzeichnis-Funktion
+	DIR *dir;
+	struct dirent *entry;
+	char docname[256];
+	// Initialisierung Liste
+	xmlDocListElement *cur = malloc(sizeof(xmlDocListElement));
+	xmlDocListHead *head = malloc(sizeof(xmlDocListHead));
+	head->first = cur;
+	head->size	= 0;
+	cur->next = NULL;
+	cur->ptr  = NULL;
+	// Aufbau der Liste mit XML-Pointern der jeweiligen Nachrichten-Datei
+	if ((dir = opendir(pathname)) != NULL) {
+		while ((entry = readdir(dir)) != NULL) {
+			if (entry->d_type == DT_REG) {
+				xmlDocListElement *new = malloc(sizeof(xmlDocListElement));
+				new->next = NULL;
+				new->ptr  = NULL;
+				snprintf(docname, sizeof(docname), "%s%s", pathname, entry->d_name);
+				cur->next = new;
+				cur->ptr  = getdoc(docname);
+				cur = new;
+				head->size++;
+			}
+		}
+		closedir(dir);
+	}
+	return head;
+}
+
+/** \brief Erzeugt eine Liste mit Pointern der xml-Dateien im übergebenen Pfad
+ * 
+ * \param[in] *docname = Dateipfad
+ * 
+ * \return	xmlDocPtr
+ * 			NULL im Fehlerfall
+ */
+xmlDocPtr getdoc(char *docname) {
+	xmlDocPtr doc;
+	doc = xmlParseFile(docname);
+	if (doc == NULL) {
+		fprintf(stderr, "Fehler beim Einlesen der XML-Datei!\n");
+		return NULL;
+	}
+	return doc;
+}
+
+int sendMessage(int msgSocket, xmlDocPtr doc) {
+	int bufferSize, sentBytes;
+	xmlChar *xmlBuffer;
+	
+	xmlDocDumpMemory(doc, &xmlBuffer, &bufferSize);
+	char *size	= int2string(bufferSize);
+	
+	// Größe der Nachricht senden
+	send(msgSocket, size, BUF, 0);
+	// Nachricht senden
+	sentBytes = send(msgSocket, xmlBuffer, bufferSize, 0);
+	if (sentBytes != bufferSize)
+		return error("Nachricht unvollständig gesendet\n");
+	else {
+		printf("Nachricht versendet!\n");
+		return 1;
+	}
 }
