@@ -5,17 +5,9 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include <string.h>
-
 #include <time.h>
-
 #include <dirent.h>
-
-#include <libxml/parser.h>
-#include <libxml/xpath.h>
-#include <libxml/tree.h>
 
 #include <list.h>
 #include <func.h>

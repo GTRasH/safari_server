@@ -1,5 +1,11 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <assert.h>
+
 #include <libxml/parser.h>
 #include <libxml/xpath.h>
+#include <libxml/tree.h>
+#include <mysql.h>
 
 #define BUF 1024
 #define SIM_FILE "/tmp/safari_sim.sock"
@@ -11,6 +17,22 @@
  * \return	EXIT_FAILURE
  */
 int error(char *message);
+
+/** \brief Fehlerfunktion für MYSQL
+ * 
+ * \param[in] *con = MYSQL Objekt
+ * 
+ * \return	exit(1)
+ */
+void sqlError(MYSQL *con);
+
+/** \brief DB-Connector
+ * 
+ * \param[in] *db = DB-Name
+ * 
+ * \return	MYSQL
+ */
+MYSQL * sqlConnect(char * db);
 
 /** \brief Cast eines n-stelligen int in einen n-stelligen char
  * 
@@ -39,7 +61,6 @@ int setNodeValue(xmlDocPtr doc, char * expression, char * value);
  */
 char ** getNodeValue(xmlDocPtr doc, char * expression);
 
-
 /** \brief Aufruf aller Knoten mit einem bestimmten Namen
  * 
  * \param[in] *doc	 		= Pointer des XML-Objektes
@@ -56,3 +77,12 @@ xmlXPathObjectPtr getNodes(xmlDocPtr doc, char * expression);
  * \return	void
  */
 void freeArray(char ** array);
+
+/** \brief Speicherfreigabe einer Hash-Table
+ * 
+ * \param[in] ** hashTable	= zu leerende Hash
+  * 
+ * \return	void
+ */
+void freeHash(char ** hashTable);
+
