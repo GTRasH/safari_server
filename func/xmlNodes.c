@@ -19,8 +19,11 @@ int setNodeValue(xmlDocPtr doc, char * expression, char * value) {
 	return 1;
 }
 
-char * getNodeValue(xmlDocPtr doc, char * expression) {
-	int size, length;
+char ** getNodeValue(xmlDocPtr doc, char * expression) {
+	int i, size, length;
+	char * temp;
+	char ** arr;
+	
 	xmlXPathObjectPtr xpathObject = getNodes(doc, expression);
 	if (xpathObject == NULL) {
 		xmlXPathFreeObject(xpathObject);
@@ -28,17 +31,21 @@ char * getNodeValue(xmlDocPtr doc, char * expression) {
 	}
 	xmlNodeSetPtr nodes = xpathObject->nodesetval;
 	size = (nodes) ? nodes->nodeNr : 0;
-	if (size > 1)
+	
+	if (size == 0)
 		return NULL;
-	char *tmp = (char *) nodes->nodeTab[0]->name;
-	
-	printf("Node Value: %s Length: %i\n", tmp, (int)strlen(tmp));
-	
-	length = (int)strlen(tmp);
-//	char *value = malloc(length+1);
-//	strcpy(value, tmp);
-//	value[length] = '\0';
-	return "test";
+
+	arr = calloc(size+1, sizeof(char *));
+
+	for (i = 0; i < size; i++) {
+		temp	= (char *) xmlNodeGetContent(nodes->nodeTab[i]);
+		length	= (int)strlen(temp);
+		arr[i]	= calloc(length+1, sizeof(char));
+		strcpy(arr[i], temp);
+		arr[i][length] = '\0';
+	}
+	arr[size] = '\0';
+	return arr;
 }
 
 xmlXPathObjectPtr getNodes(xmlDocPtr doc, char * expression) {

@@ -1,5 +1,5 @@
 P		= simulator
-FUNC	= error.o int2string.o xmlNodes.o
+FUNC	= basics.o xmlNodes.o
 EXT		= $(FUNC:%.o=./../func/%.o)
 OBJ		= $(P).o $(EXT)
 CC		= gcc

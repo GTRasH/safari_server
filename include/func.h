@@ -27,21 +27,29 @@ char * int2string(int value);
  */
 int setNodeValue(xmlDocPtr doc, char * expression, char * value);
 
-/** \brief Liefert den Knoten-Wert innerhalb eines XML-Dokumentes
+/** \brief Liefert ein Array mit Strings (Werte der "Expression"-Tags)
  * 
  * \param[in] *doc	 		= Pointer des XML-Objektes
- * \param[in] *expression	= TagName -> "//bezeichner"
+ * \param[in] *expression	= TagName -> siehe XPath API
  * 
- * \return	char *, NULL sonst
+ * \return	char **, NULL sonst
  */
-char * getNodeValue(xmlDocPtr doc, char * expression);
+char ** getNodeValue(xmlDocPtr doc, char * expression);
 
 
 /** \brief Aufruf aller Knoten mit einem bestimmten Namen
  * 
  * \param[in] *doc	 		= Pointer des XML-Objektes
- * \param[in] *expression	= TagName -> "//bezeichner"
+ * \param[in] *expression	= TagName -> siehe XPath API
   * 
  * \return	xmlXPathObjectPtr wenn OK, NULL sonst
  */
 xmlXPathObjectPtr getNodes(xmlDocPtr doc, char * expression);
+
+/** \brief Speicherfreigabe eines zweidimensionalen Arrays
+ * 
+ * \param[in] ** array	= zu leerendes Array
+  * 
+ * \return	void
+ */
+void freeArray(char ** array);

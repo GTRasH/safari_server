@@ -29,6 +29,8 @@ xmlDocListHead *getxmlptrlist(char *pathname);
 
 int sendMessage(int msgSocket, xmlDocPtr doc);
 
+int getMinuteOfTheYear(void);
+
 int main (void) {
 	// Deklarationen
 	xmlDocListHead *mapHead;
@@ -79,6 +81,14 @@ int main (void) {
 			fprintf(stdout, "- Message Manager verbunden\n");
 	
 //		do {
+			// SPaT Nachrichten senden
+			spatElement = spatHead->first;
+			while (spatElement->ptr != NULL) {
+				setNodeValue(spatElement->ptr, "//timeStamp", int2string(time(NULL)));
+				sendMessage(msgSocket, spatElement->ptr);
+				spatElement = spatElement->next;
+				sleep(1);
+			}
 			// MAP Nachrichten senden
 			mapElement = mapHead->first;
 			while (mapElement->ptr != NULL) {
@@ -87,15 +97,6 @@ int main (void) {
 				mapElement = mapElement->next;
 				sleep(1);
 			}
-			// SPaT Nachrichten senden
-			spatElement = spatHead->first;
-			while (mapElement->ptr != NULL) {
-				setNodeValue(spatElement->ptr, "//timeStamp", int2string(time(NULL)));
-				sendMessage(msgSocket, spatElement->ptr);
-				spatElement = spatElement->next;
-				sleep(1);
-			}
-			
 			char *buffer = "quit";
 			send(msgSocket, buffer, BUF, 0);
         
@@ -171,7 +172,9 @@ int sendMessage(int msgSocket, xmlDocPtr doc) {
 	// Größe der Nachricht senden
 	send(msgSocket, size, BUF, 0);
 	// Nachricht senden
+	xmlBuffer[bufferSize] = '\0';
 	sentBytes = send(msgSocket, xmlBuffer, bufferSize, 0);
+	free(xmlBuffer);
 	if (sentBytes != bufferSize)
 		return error("Nachricht unvollständig gesendet\n");
 	else {
