@@ -20,9 +20,6 @@
 #include <list.h>
 #include <func.h>
 
-#define UDS_FILE "/tmp/safari_sim.sock"
-#define BUF 1024
-
 xmlDocPtr getdoc(char *docname);
 
 xmlDocListHead *getxmlptrlist(char *pathname);
@@ -64,9 +61,9 @@ int main (void) {
 		return error("Error: Unable to create socket\n");
 	
 	addrlen = sizeof(struct sockaddr_in);
-	unlink(UDS_FILE);
+	unlink(SIM_FILE);
 	address.sun_family = AF_LOCAL;
-	strcpy(address.sun_path, UDS_FILE);
+	strcpy(address.sun_path, SIM_FILE);
 	
 	if (bind(createSocket, (struct sockaddr *) &address, sizeof(address)) != 0)
 		return error("Error: Unable to bind socket\n");

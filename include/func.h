@@ -1,6 +1,9 @@
 #include <libxml/parser.h>
 #include <libxml/xpath.h>
 
+#define BUF 1024
+#define SIM_FILE "/tmp/safari_sim.sock"
+
 /** \brief Fehlerfunktion
  * 
  * \param[in] *message = Fehlermeldung
