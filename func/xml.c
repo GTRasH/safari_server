@@ -1,5 +1,4 @@
-#include <string.h>
-#include <func.h>
+#include <xml.h>
 
 int setNodeValue(xmlDocPtr doc, char * expression, char * value) {
 	int i, size;

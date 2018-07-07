@@ -1,4 +1,4 @@
-FUNC	= simulator.o xml.o socket.o basic.o
+FUNC	= signals.o socket.o basic.o
 EXT		= $(FUNC:%.o=./../func/%.o)
 OBJ		= main.o $(EXT)
 CC		= gcc
