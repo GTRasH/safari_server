@@ -1,4 +1,5 @@
 
+
 #define MAX_HASH 100
 
 /** \brief Listen-Element für SPat- und MAP-Nachrichten (Lesevorgang) */
@@ -14,9 +15,9 @@ typedef struct {
 } xmlDocListHead;
 
 /** \brief Element für MAP-Nachrichten in Hash-Table */
-typedef struct intersectionGeometry {
-	struct intersectionGeometry *next;
+typedef struct intersectGeo {
+	struct intersectGeo *next;
 	uint32_t referenceID;
 	int timestamp;
 	char * xml;
-} intersectionGeometry;
+} intersectGeo;

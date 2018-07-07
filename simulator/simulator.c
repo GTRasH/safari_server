@@ -3,13 +3,12 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <netinet/in.h>
-#include <arpa/inet.h>
+
 #include <unistd.h>
 #include <string.h>
 #include <time.h>
 #include <dirent.h>
 
-#include <list.h>
 #include <func.h>
 
 xmlDocPtr getdoc(char *docname);

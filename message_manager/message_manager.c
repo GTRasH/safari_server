@@ -1,14 +1,19 @@
-
-#include <sys/types.h>
+/*	#########################################################
+ * 	#		HfTL SAFARI PROTOTYP - MESSAGE MANAGER			#
+ * 	#														#
+ * 	#	Author:	Sebastian Neutsch							#
+ * 	#	Mail:	sebastian.neutsch@t-online.de				#
+ * 	#
+ * 	#
+ * 	#########################################################
+*/
 #include <sys/socket.h>
 #include <sys/un.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
 #include <unistd.h>
 #include <string.h>
-
 #include <func.h>
-#include <list.h>
 
 /** \brief	Empfang von Nachrichten aus dem SIM_SOCK und Deserialisierung
  * 
@@ -28,7 +33,7 @@ xmlDocPtr getMessage(int createSocket, int *response);
  * 
  * \return	xmlDocPtr auf xmlDoc einer Nachricht
  */
-int processMAP(xmlDocPtr message, MYSQL *con, intersectionGeometry ** mapTable);
+int processMAP(xmlDocPtr message, MYSQL *con, intersectGeo ** mapTable);
 
 /** \brief	Verarbeitet SPaT-Nachrichten
  * 			Selektiert Intersection
@@ -38,7 +43,7 @@ int processMAP(xmlDocPtr message, MYSQL *con, intersectionGeometry ** mapTable);
  * 
  * \return	xmlDocPtr auf xmlDoc einer Nachricht
  */
-int processSPAT(xmlDocPtr message, intersectionGeometry ** mapTable);
+int processSPAT(xmlDocPtr message, intersectGeo ** mapTable);
 
 /** \brief	Berechnet aus der Regulator- und IntersectionID (jeweils 16 Bit)
  * 			die 32 Bit IntersectionReferenceID zur Verwendung als Hash-Schlüssel
@@ -49,14 +54,22 @@ int processSPAT(xmlDocPtr message, intersectionGeometry ** mapTable);
  */
 uint32_t getReferenceID(xmlDocPtr xmlDoc);
 
-/** \brief	Generiert einen wohlgeformten XML-String
+/** \brief	Liefert ein String-Array. Jeder String ist ein Baum ab 'tag'.
  * 
  * \param[in] message	Pointer auf ein XML-Dokument
  * \param[in] tag		zu suchender Tag-Name (XPath-Expression)
  * 
+ * \return	String
+ */
+char ** getTree(xmlDocPtr message, char * tag);
+
+/** \brief	Ergänzt die Strings im Array mit <?xml version="1.0"?>
+ * 
+ * \param[in] trees		Bäume
+ * 
  * \return	XML-String (beginnend mit <?xml version="1.0"?>)
  */
-char ** getSubXMLString(xmlDocPtr message, char * tag);
+char ** getWellFormedXML(char ** trees);
 
 /** \brief	Generiert ein intersectionGeometry-Element für die Hash-Table
  * 
@@ -66,7 +79,7 @@ char ** getSubXMLString(xmlDocPtr message, char * tag);
  * 
  * \return	intersectionGeometry-Element
  */
-intersectionGeometry * getNewGeometryElement(uint32_t refID, char * timestamp, char * xml);
+intersectGeo * getNewGeoElement(uint32_t refID, char * timestamp, char * xml);
 
 /** \brief	Sucht ein intersectionGeometry-Element in der Hash-Table mittels refID
  * 
@@ -75,7 +88,7 @@ intersectionGeometry * getNewGeometryElement(uint32_t refID, char * timestamp, c
  * \return	xmlDocPtr, wenn Element gefunden
  * 			NULL, sonst
  */
-xmlDocPtr getGeometryElement(intersectionGeometry ** table, uint32_t refID);
+xmlDocPtr getGeoElement(intersectGeo ** table, uint32_t refID);
 
 /** \brief	Einmaliger Aufruf beim Start des Message Manager
  * 			Abfrage der MAP-Informationen auf der DB
@@ -84,7 +97,7 @@ xmlDocPtr getGeometryElement(intersectionGeometry ** table, uint32_t refID);
  * 
  * \return	intersectionGeometry Hash-Table
  */
-intersectionGeometry ** getGeometryTable(MYSQL *con);
+intersectGeo ** getGeoTable(MYSQL *con);
 
 /** \brief	Sucht eine Geometry-Element anhand der refID in der Hash-Table
  * 			Aktualisiert den Eintrag wenn vorhanden oder legt einen neuen an
@@ -96,18 +109,26 @@ intersectionGeometry ** getGeometryTable(MYSQL *con);
  * 
  * \return	void
  */
-void setGeometryElement(intersectionGeometry ** table, uint32_t refID, char * timestamp, char * xml);
+void setGeoElement(intersectGeo ** table, uint32_t refID, char * timestamp, char * xml);
+
+/** \brief	Hash-Funktion
+ * 
+ * \param[in] refID		IntersectionReferenceID
+ * 
+ * \return	int Hash
+ */
+int getHash(uint32_t refID);
 
 int main (int argc, char **argv) {
 	int createSocket, response;
 	struct sockaddr_un address;
 	char ** msgId;
 	xmlDocPtr message;
-	intersectionGeometry ** mapTable;
+	intersectGeo ** geoTable;
 	
 	MYSQL * con = sqlConnect("archive");
   
-	mapTable = getGeometryTable(con);
+	geoTable = getGeoTable(con);
 	
 	if ((createSocket=socket (PF_LOCAL, SOCK_STREAM, 0)) > 0)
 		printf ("Socket wurde angelegt\n");
@@ -128,7 +149,7 @@ int main (int argc, char **argv) {
 		}
 		// messageId auswerten und weitere Verarbeitung triggern
 		switch ((int)strtol(msgId[0], NULL, 10)) {
-			case 18:	switch (processMAP(message, con, mapTable)) {
+			case 18:	switch (processMAP(message, con, geoTable)) {
 							case 0: printf("MAP-Nachricht erfolgreich verarbeitet\n");
 									break;
 							case 1:	printf("Error: MAP-Nachricht ohne IntersectionGeometry-Knoten!\n");
@@ -136,7 +157,7 @@ int main (int argc, char **argv) {
 							default: ; break;
 						}
 						break;
-			case 19:	switch (processSPAT(message, mapTable)) {
+			case 19:	switch (processSPAT(message, geoTable)) {
 							case 0: printf("SPaT-Nachricht erfolgreich verarbeitet\n");
 									break;
 							case 1:	printf("Error: SPaT-Nachricht ohne IntersectionState-Knoten!\n");
@@ -152,6 +173,7 @@ int main (int argc, char **argv) {
 		
 	} while (response > 0);
 	
+	freeGeoTable(geoTable);
 	mysql_close(con);
 	close(createSocket);
 	
@@ -160,12 +182,12 @@ int main (int argc, char **argv) {
 
 xmlDocPtr getMessage(int createSocket, int *response) {
 	int msgSize;
-	char *recvBuffer, *tmp;
+	char *recvBuffer;
 	xmlDocPtr message;
 	// Empfang der Nachrichtengröße
 	recvBuffer = calloc(BUF, sizeof(char));
 	recv(createSocket, recvBuffer, BUF, 0);
-	msgSize = (int)strtol(recvBuffer, &tmp, 10);
+	msgSize = (int)strtol(recvBuffer, NULL, 10);
 	free(recvBuffer);
 	if (msgSize == 0) {	// => Keine Nachrichtengröße gesendet => Abbruch
 		*response = 0;
@@ -180,13 +202,15 @@ xmlDocPtr getMessage(int createSocket, int *response) {
 	return message;
 }
 
-int processMAP(xmlDocPtr message, MYSQL *con, intersectionGeometry ** mapTable) {
+int processMAP(xmlDocPtr message, MYSQL *con, intersectGeo ** mapTable) {
 	xmlDocPtr xmlPtr;
 	uint32_t refID, xmlLen;
 	char * query, ** geometry;
 	// Jedes Element von geometry ist ein gültiger XML-String
-	if ((geometry = getSubXMLString(message, "//IntersectionGeometry")) == NULL)
+	if ((geometry = getTree(message, "//IntersectionGeometry")) == NULL)
 		return 1;
+	
+	geometry = getWellFormedXML(geometry);
 	for (int i = 0; *(geometry+i); ++i) {
 		xmlLen	= strlen(*(geometry+i));
 		xmlPtr	= xmlReadMemory(*(geometry+i), xmlLen, NULL, NULL, 0);
@@ -201,29 +225,29 @@ int processMAP(xmlDocPtr message, MYSQL *con, intersectionGeometry ** mapTable) 
 			sqlError(con);
 		free(query);
 		// Aktualisierung der MAP-Table
-		setGeometryElement(mapTable, refID, "0", *(geometry+i));
+		setGeoElement(mapTable, refID, "0", *(geometry+i));
 	}
 	freeArray(geometry);
 	return 0;
 }
 
-
-int processSPAT(xmlDocPtr message, intersectionGeometry ** mapTable) {
+int processSPAT(xmlDocPtr message, intersectGeo ** mapTable) {
 	xmlDocPtr ptrSPAT, ptrMAP;
 	uint32_t refID;
-	char ** state;
-	int i;
+	char ** state, ** refPoint;
 
-	if ((state = getSubXMLString(message, "//IntersectionState")) == NULL)
+	if ((state = getTree(message, "//IntersectionState")) == NULL)
 		return 1;
-	for (i = 0; *(state+i); ++i) {
-		ptrSPAT	= xmlReadMemory(*(state+i), strlen(*(state+i)), NULL, NULL, 0);
-		refID	= getReferenceID(ptrSPAT);
-		ptrMAP	= getGeometryElement(mapTable, refID);
-		if (ptrMAP == NULL)
-			printf("Kein MAP-Eintrag für %i gefunden\n", refID);
-		else
-			printf("MAP-Eintrag für %i gefunden !!!\n", refID);
+	state = getWellFormedXML(state);
+	for (int i = 0; *(state+i); ++i) {
+		ptrSPAT		= xmlReadMemory(*(state+i), strlen(*(state+i)), NULL, NULL, 0);
+		refID		= getReferenceID(ptrSPAT);
+		// Existiert keine MAP-Information, wird die SPaT-Nachricht übersprungen
+		if ((ptrMAP = getGeoElement(mapTable, refID)) == NULL)
+			continue;
+		
+		refPoint	= getTree(ptrMAP, "//refPoint");
+		printf("%s\n", *(refPoint));
 	}
 	
 	freeArray(state);
@@ -248,33 +272,31 @@ uint32_t getReferenceID(xmlDocPtr xmlDoc) {
 	return (refID + intID);
 }
 
-char ** getSubXMLString(xmlDocPtr message, char * tag) {
+char ** getTree(xmlDocPtr message, char * tag) {
 	xmlNodeSetPtr nodes;
 	xmlBufferPtr xmlBuff;
-	const char * xmlTag = "<?xml version=\"1.0\"?>";
 	char ** array;
 	int countNodes, dumpSize;
 	// Aufruf aller Knoten (Evaluierung mittels tag)
 	nodes	= getNodes(message, tag)->nodesetval;
 	if ((countNodes = (nodes) ? nodes->nodeNr : 0) == 0)
 		return NULL;
-	// erstellt für jeden jeden gefundenen Tag einen XML-Doc-String
+	// erstellt für jeden gefundenen Tag einen XML-Doc-String
 	array = calloc(countNodes+1, sizeof(char*));
 	for (int i = 0; i < countNodes; ++i) {
 		xmlBuff	 = xmlBufferCreate();
 		dumpSize = xmlNodeDump(xmlBuff, message, nodes->nodeTab[i], 0, 0);
-		array[i] = calloc(((int)strlen(xmlTag) + dumpSize + 1), sizeof(char));
-		array[i] = strcpy(array[i], xmlTag);
-		array[i] = strcat(array[i], (char *) xmlBuff->content);
+		array[i] = calloc((dumpSize + 1), sizeof(char));
+		array[i] = strcpy(array[i], (char *) xmlBuff->content);
+		array[i][dumpSize] = '\0';
 		xmlBufferFree(xmlBuff);
 	}
-	// definiertes Ende des Arrays
 	array[countNodes] = '\0';
 	return array;
 }
 
-intersectionGeometry ** getGeometryTable(MYSQL *con) {
-	intersectionGeometry ** geometryTable, * geometry, * geoPtr;
+intersectGeo ** getGeoTable(MYSQL *con) {
+	intersectGeo ** geometryTable, * geometry, * geoPtr;
 	MYSQL_RES * result;
 	MYSQL_ROW row;
 	uint32_t refID;
@@ -285,14 +307,14 @@ intersectionGeometry ** getGeometryTable(MYSQL *con) {
 	if ((result = mysql_store_result(con)) == NULL)
 		sqlError(con);
 	// Hash-Table initialisieren
-	geometryTable = calloc(MAX_HASH, sizeof(intersectionGeometry *));
+	geometryTable = calloc(MAX_HASH, sizeof(intersectGeo *));
 	for (int i = 0; i < MAX_HASH; i++)
 		geometryTable[i] = NULL;
 	// DB-Ergebnisse verarbeiten (Hash-Table füllen)
 	while ((row = mysql_fetch_row(result))) {
 		refID	 = (uint32_t)strtol(row[0], NULL, 10);
-		hash	 = refID % MAX_HASH;
-		geometry = getNewGeometryElement(refID, row[1], row[2]);
+		hash	 = getHash(refID);
+		geometry = getNewGeoElement(refID, row[1], row[2]);
 		// Kollisions-Abfrage
 		if (geometryTable[hash] == NULL)
 			geometryTable[hash] = geometry;
@@ -306,10 +328,10 @@ intersectionGeometry ** getGeometryTable(MYSQL *con) {
 	return geometryTable;
 }
 
-intersectionGeometry * getNewGeometryElement(uint32_t refID, char * timestamp, char * xml) {
-	intersectionGeometry * geometry;
-	// intersectionGeometry-Element aufbauen und mit Daten füllen
-	geometry			  = malloc(sizeof(intersectionGeometry));
+intersectGeo * getNewGeoElement(uint32_t refID, char * timestamp, char * xml) {
+	intersectGeo * geometry;
+	// intersectGeo-Element aufbauen und mit Daten füllen
+	geometry			  = malloc(sizeof(intersectGeo));
 	geometry->xml		  = calloc(strlen(xml)+1, sizeof(char));
 	geometry->referenceID = refID;
 	geometry->timestamp	  = (int)strtol(timestamp, NULL, 10);
@@ -318,8 +340,8 @@ intersectionGeometry * getNewGeometryElement(uint32_t refID, char * timestamp, c
 	return geometry;
 }
 
-void setGeometryElement(intersectionGeometry ** table, uint32_t refID, char * timestamp, char * xml) {
-	intersectionGeometry * mapPtr = table[refID % MAX_HASH];
+void setGeoElement(intersectGeo ** table, uint32_t refID, char * timestamp, char * xml) {
+	intersectGeo * mapPtr = table[getHash(refID)];
 	// Suche das Element mit der refID in der Hash-Table
 	while (mapPtr != NULL) {
 		if (mapPtr->referenceID != refID)
@@ -334,13 +356,15 @@ void setGeometryElement(intersectionGeometry ** table, uint32_t refID, char * ti
 		}
 	}
 	// Die referenceID wurde nicht gefunden -> Neues Element anlegen
-	intersectionGeometry * newElement = getNewGeometryElement(refID, timestamp, xml);
-	mapPtr->next = newElement;
+	intersectGeo * newElement = getNewGeoElement(refID, timestamp, xml);
+	if (mapPtr == NULL)
+		mapPtr = newElement;
+	else
+		mapPtr->next = newElement;
 }
 
-xmlDocPtr getGeometryElement(intersectionGeometry ** table, uint32_t refID) {
-	intersectionGeometry * mapPtr;
-	mapPtr = table[refID % MAX_HASH];
+xmlDocPtr getGeoElement(intersectGeo ** table, uint32_t refID) {
+	intersectGeo * mapPtr = table[getHash(refID)];
 	// Suche das Element mit der refID in der Hash-Table
 	while (mapPtr != NULL)
 		if (mapPtr->referenceID != refID)
@@ -349,4 +373,26 @@ xmlDocPtr getGeometryElement(intersectionGeometry ** table, uint32_t refID) {
 			return xmlReadMemory(mapPtr->xml, strlen(mapPtr->xml), NULL, NULL, 0);
 	// NULL wenn Element nicht gefunden
 	return NULL;
+}
+
+int getHash(uint32_t refID) {
+	return refID % MAX_HASH;
+}
+
+char ** getWellFormedXML(char ** trees) {
+	size_t xmlLength;
+	char * xmlString;
+	const char * xmlTag		= "<?xml version=\"1.0\"?>\n";
+	const size_t xmlTagLen	= (int)strlen(xmlTag);
+	for (int i = 0; trees[i]; i++) {
+		xmlLength	= strlen(trees[i]);
+		xmlString	= malloc(xmlLength);
+		xmlString	= strcpy(xmlString, trees[i]);
+		free(trees[i]);
+		trees[i]	= calloc((xmlLength + xmlTagLen + 1), sizeof(char));
+		strcpy(trees[i], xmlTag);
+		strcat(trees[i], xmlString);
+		free(xmlString);
+	}
+	return trees;
 }

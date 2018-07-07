@@ -24,6 +24,20 @@ void freeArray(char ** array) {
 	free(array);
 }
 
+void freeGeoTable(intersectGeo ** table) {
+	intersectGeo * geoPtr, * temp;
+	for (int i = 0; i < MAX_HASH; ++i) {
+		geoPtr = table[i];
+		while (geoPtr != NULL) {
+			free(geoPtr->xml);
+			temp	= geoPtr;
+			geoPtr	= geoPtr->next;
+			free(temp);
+		}
+		free(table[i]);
+	}
+}
+
 void sqlError(MYSQL *con) {
 	fprintf(stderr, "%s\n", mysql_error(con));
 	mysql_close(con);

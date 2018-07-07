@@ -7,6 +7,8 @@
 #include <libxml/tree.h>
 #include <mysql.h>
 
+#include <list.h>
+
 #define BUF 1024
 #define SIM_FILE "/tmp/safari_sim.sock"
 
@@ -78,11 +80,11 @@ xmlXPathObjectPtr getNodes(xmlDocPtr doc, char * expression);
  */
 void freeArray(char ** array);
 
-/** \brief Speicherfreigabe einer Hash-Table
+/** \brief Speicherfreigabe der IntersectionGeometry-Table
  * 
  * \param[in] ** hashTable	= zu leerende Hash
   * 
  * \return	void
  */
-void freeHash(char ** hashTable);
+void freeGeoTable(intersectGeo ** hashTable);
 
