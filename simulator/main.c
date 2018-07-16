@@ -16,20 +16,19 @@ int main (void) {
 	// Deklarationen
 	xmlListHead * mapHead, * spatHead;
 	xmlListElement * mapElement, * spatElement;
-	int createSocket, msgSocket;
-	
+	int uds, msgSocket;
 	socklen_t addrlen;
 	struct sockaddr_un address;
 	
 	// # # # Laden der Nachrichten # # #
 	fprintf(stdout, "# # # Nachrichten werden eingelesen # # #\n");
-	mapHead = getxmlptrlist("./../xml/map/");
+	mapHead = getxmlptrlist(MAP_PATH);
 	if (mapHead->first->ptr == NULL)
-		return error("Error: Unable to load MAP messages\n");
+		setError("Error: Unable to load MAP messages\n", 1);
 
-	spatHead = getxmlptrlist("./../xml/spat/");
+	spatHead = getxmlptrlist(SPAT_PATH);
 	if (spatHead->first->ptr == NULL)
-		return error("Error: Unable to load SPaT messages\n");
+		setError("Error: Unable to load SPaT messages\n", 1);
 	
 	fprintf(stdout, "- Einlesevorgang erfolgreich\n"
 					"  Es werden %lu MAP- und %lu SPaT-Nachrichten verarbeitet\n\n",
@@ -39,17 +38,17 @@ int main (void) {
 	// # # # Socket aufbauen, binden und auf connect warten # # #
 	fprintf(stdout, "# # # Nachrichten-Server wird gestartet # # #\n");
 	
-	createSocket = getServerUDS(&address, &addrlen);
+	uds = getServerUDS(&address, &addrlen);
 	
-	if (bind(createSocket, (struct sockaddr *) &address, sizeof(address)) != 0)
-		return error("Error: Unable to bind socket\n");
+	if (bind(uds, (struct sockaddr *) &address, sizeof(address)) != 0)
+		setError("Error: Unable to bind socket\n", 1);
 
-	listen(createSocket, 1);
+	listen(uds, 1);
 	fprintf(stdout, "- Server wartet auf Verbindung vom Message Manager\n");
 	// # # # Simulator wartet nun auf connect # # #
 	
 
-	while((msgSocket = accept(createSocket, (struct sockaddr *) &address, &addrlen)) >= 0) {
+	while((msgSocket = accept(uds, (struct sockaddr *) &address, &addrlen)) >= 0) {
 		fprintf(stdout, "- Message Manager verbunden\n");
 	
 //		do {
@@ -74,6 +73,6 @@ int main (void) {
         
 //		} while (strcmp(xmlbuff, "complete"));
 	}
- 	close (createSocket);
+ 	close (uds);
 	return EXIT_SUCCESS;
 }

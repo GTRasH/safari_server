@@ -20,7 +20,8 @@ xmlListHead *getxmlptrlist(char *pathname) {
 				xmlListElement *new = malloc(sizeof(xmlListElement));
 				new->next = NULL;
 				new->ptr  = NULL;
-				snprintf(docname, sizeof(docname), "%s%s", pathname, entry->d_name);
+				snprintf(docname, sizeof(docname), 
+						"%s%s", pathname, entry->d_name);
 				cur->next = new;
 				cur->ptr  = getdoc(docname);
 				cur = new;
@@ -32,17 +33,7 @@ xmlListHead *getxmlptrlist(char *pathname) {
 	return head;
 }
 
-xmlDocPtr getdoc(char *docname) {
-	xmlDocPtr doc;
-	doc = xmlParseFile(docname);
-	if (doc == NULL) {
-		fprintf(stderr, "Fehler beim Einlesen der XML-Datei!\n");
-		return NULL;
-	}
-	return doc;
-}
-
-int sendMessage(int msgSocket, xmlDocPtr doc) {
+void sendMessage(int msgSocket, xmlDocPtr doc) {
 	int bufferSize, sentBytes;
 	xmlChar *xmlBuffer;
 	
@@ -56,9 +47,7 @@ int sendMessage(int msgSocket, xmlDocPtr doc) {
 	sentBytes = send(msgSocket, xmlBuffer, bufferSize, 0);
 	free(xmlBuffer);
 	if (sentBytes != bufferSize)
-		return error("Nachricht unvollständig gesendet\n");
-	else {
-		printf("Nachricht versendet!\n");
-		return 1;
-	}
+		setError("Nachricht unvollständig gesendet\n", 0);
+	else
+		fprintf(stdout, "Nachricht versendet!\n");
 }

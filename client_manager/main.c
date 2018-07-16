@@ -1,5 +1,5 @@
 /*	#########################################################
- * 	#			HfTL SAFARI PROTOTYP - SIMULATOR			#
+ * 	#		HfTL SAFARI PROTOTYP - CLIENT MANAGER			#
  * 	#														#
  * 	#	Author:	Sebastian Neutsch							#
  * 	#	Mail:	sebastian.neutsch@t-online.de				#
@@ -7,45 +7,55 @@
  * 	#
  * 	#########################################################
 */
-
 #include <basic.h>
 #include <socket.h>
-#include <signals.h>
-
+#include <xml.h>
+#include <sql.h>
+#include <client_manager.h>
 
 int main(void) {
-	int socketCreate, socketNew;
-	socklen_t addrlen;
-	char *buffer = malloc(MSG_BUF);
-	ssize_t size;
-	struct sockaddr_in address;
-	const int y = 1;
+//	int (*func) (char *, clientStruct *);
+	socket_t sockServer, sockClient;
+	clientStruct * client;
+	sockServer = getSocket(AF_INET, SOCK_STREAM, 0);
+	setSocketBind(&sockServer, INADDR_ANY, PORT);
+	setSocketListen(&sockServer);
 	
-	if ((socketCreate = socket(AF_INET, SOCK_STREAM, 0)) > 0)
-		printf("Socket wurde angelegt\n");
-		
-	setsockopt(socketCreate, SOL_SOCKET, SO_REUSEADDR, &y, sizeof(int));
-	
-	address.sin_family		= AF_INET;
-	address.sin_addr.s_addr	= INADDR_ANY;
-	address.sin_port		= htons(15000);
-	
-	if (bind(socketCreate, (struct sockaddr *) &address, sizeof(address)) != 0)
-		printf("Port ist belegt!\n");
-		
-	listen(socketCreate, SOMAXCONN);
-	addrlen = sizeof(struct sockaddr_in);
+	mySignal(SIGCHLD, SIG_IGN);
 	
 	while (1) {
-		socketNew = accept(socketCreate, (struct sockaddr *) &address, &addrlen);
+		int pid;
 		
-		if (socketNew > 0)
-			printf("Ein Client (%s) ist verbunden ... \n", inet_ntoa(address.sin_addr));
-			
+		printf("Warte auf Verbindungsaufbau eines Clients ... \n");
 		
-		// fork oder thread ...
-		
-		close(socketNew);
+		setSocketAccept(&sockServer, &sockClient);
+
+		pid = fork();
+		switch (pid) {
+			case 0:
+				client = malloc(sizeof(clientStruct));
+				printf("Client verbunden mit Socket %d und pid %d\n", sockClient, getpid());
+				
+				if (setClientInit(sockClient, client))
+					printf("Client Initialisierung fehlgeschlagen!");
+				else {
+					printf(	"SAFARI-Dienst für User %s gestartet!\n"
+							"Client Position latitude = %i | longitude = %i\n"
+							, client->name, client->pos.latitude, client->pos.longitude);
+				}
+
+				printf("Client Socket %d beendet\r\n", sockClient);
+				fflush(stdout);
+				close(sockClient);
+				exit(EXIT_SUCCESS);
+				break;
+			case -1:
+				setError("Error while fork() : ", 0);
+				break;
+			default:
+				close(sockClient);
+				break;
+		}
 	}
 	return EXIT_SUCCESS;
 }

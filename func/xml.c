@@ -69,3 +69,16 @@ xmlXPathObjectPtr getNodes(xmlDocPtr doc, char * expression) {
 	xmlXPathFreeContext(xpathContext);
 	return xpathObject;
 }
+
+xmlDocPtr getdoc(char *docname) {
+	xmlDocPtr doc;
+	char msg[1024];
+	doc = xmlParseFile(docname);
+	if (doc == NULL) {
+		snprintf(msg, sizeof(msg), "%s%s%s", 
+				"Fehler beim Einlesen der XML-Datei", docname, " !\n");
+		setError(msg, 0);
+		return NULL;
+	}
+	return doc;
+}

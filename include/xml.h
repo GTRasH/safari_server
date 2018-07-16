@@ -31,3 +31,12 @@ char ** getNodeValue(xmlDocPtr doc, char * expression);
  * \return	xmlXPathObjectPtr wenn OK, NULL sonst
  */
 xmlXPathObjectPtr getNodes(xmlDocPtr doc, char * expression);
+
+/** \brief Erzeugt einen Pointer auf ein XML-Dokument
+ * 
+ * \param[in] *docname = Dateipfad
+ * 
+ * \return	xmlDocPtr
+ * 			NULL im Fehlerfall
+ */
+xmlDocPtr getdoc(char *docname);

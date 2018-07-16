@@ -5,6 +5,9 @@
 #include <socket.h>
 #include <xml.h>
 
+#define MAP_PATH "./../xml/map/"
+#define SPAT_PATH "./../xml/spat/"
+
 /** \brief Listen-Element für SPat- und MAP-Nachrichten (Lesevorgang) */
 typedef struct xmlListElement {
 	struct xmlListElement *next;
@@ -19,15 +22,6 @@ typedef struct {
 
 /** \brief Erzeugt eine Liste mit Pointern der xml-Dateien im übergebenen Pfad
  * 
- * \param[in] *docname = Dateipfad
- * 
- * \return	xmlDocPtr
- * 			NULL im Fehlerfall
- */
-xmlDocPtr getdoc(char *docname);
-
-/** \brief Erzeugt eine Liste mit Pointern der xml-Dateien im übergebenen Pfad
- * 
  * \param[in] *pathname = Nachrichtenverzeichnis (SPaT oder MAP / universal)
  * 
  * \return	xmlDocListHead->xmlDocListElement->ptr != NULL
@@ -35,6 +29,6 @@ xmlDocPtr getdoc(char *docname);
  */
 xmlListHead *getxmlptrlist(char *pathname);
 
-int sendMessage(int msgSocket, xmlDocPtr doc);
+void sendMessage(int msgSocket, xmlDocPtr doc);
 
 int getMinuteOfTheYear(void);

@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<safari>
+	<header>
+		<request></request>
+		<response>location</response>
+	</header>
+	<data>
+		<refPoint>
+			<lat>3</lat>
+			<long>3</long>
+		</refPoint>
+	</data>
+</safari>
