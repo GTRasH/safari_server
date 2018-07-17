@@ -7,7 +7,7 @@ CFLAGS	= -Wall -g -D_REENTRANT
 LDFLAGS	= -I./../include `xml2-config --cflags` `mysql_config --cflags` `xml2-config --libs` `mysql_config --libs`
 
 $(P): $(OBJ)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $(P) $(P).o $(FUNC)
+	$(CC) $(CFLAGS) -o $(P) $(P).o $(FUNC) $(LDFLAGS)
 	
 %.o: %.c
-	$(CC) $(CFLAGS) $(LDFLAGS) -c $<
+	$(CC) $(CFLAGS) -c $< $(LDFLAGS)

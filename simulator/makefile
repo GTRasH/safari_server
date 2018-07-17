@@ -6,7 +6,7 @@ CFLAGS	= -Wall -g -D_REENTRANT
 LDFLAGS	= -I./../include `xml2-config --cflags` `xml2-config --libs`
 
 main: $(OBJ)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o main main.o $(FUNC)
+	$(CC) $(CFLAGS) -o main main.o $(FUNC) $(LDFLAGS)
 	
 %.o: %.c
-	$(CC) $(CFLAGS) $(LDFLAGS) -c $<
+	$(CC) $(CFLAGS) -c $< $(LDFLAGS)
