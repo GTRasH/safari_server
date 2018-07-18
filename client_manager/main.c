@@ -11,10 +11,13 @@
 #include <socket.h>
 #include <xml.h>
 #include <sql.h>
+#include <msg_queue.h>
 #include <client_manager.h>
 
 int main(void) {
 //	int (*func) (char *, clientStruct *);
+
+	unsigned int * seqSMS;
 	socket_t sockServer, sockClient;
 	clientStruct * client;
 	sockServer = getSocket(AF_INET, SOCK_STREAM, 0);
@@ -42,6 +45,9 @@ int main(void) {
 					printf(	"SAFARI-Dienst für User %s gestartet!\n"
 							"Client Position latitude = %i | longitude = %i\n"
 							, client->name, client->pos.latitude, client->pos.longitude);
+							
+					seqSMS = getSeqSMS(SEQ_SPAT);
+					printf("Seqnum = %ui\n", *seqSMS);
 				}
 
 				printf("Client Socket %d beendet\r\n", sockClient);

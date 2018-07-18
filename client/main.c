@@ -19,6 +19,7 @@ int main (void) {
 					fileSizeLoc		= strlen(fileLoc);
 
 	sock = getSocket(AF_INET, SOCK_STREAM, 0);
+	// setSocketConnect(&sock, "red-dev.de", 15000);
 	setSocketConnect(&sock, "localhost", 15000);
 	
 	

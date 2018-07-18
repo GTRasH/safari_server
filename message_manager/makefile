@@ -1,5 +1,5 @@
 P		= main
-FUNC	= message_manager.o xml.o sql.o socket.o basic.o
+FUNC	= message_manager.o msg_queue.o xml.o sql.o socket.o basic.o
 EXT		= $(FUNC:%.o=./../func/%.o)
 OBJ		= $(P).o $(EXT)
 CC		= gcc

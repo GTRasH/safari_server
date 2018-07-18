@@ -1,4 +1,4 @@
-FUNC	= client_manager.o xml.o sql.o socket.o basic.o
+FUNC	= client_manager.o msg_queue.o xml.o sql.o socket.o basic.o
 EXT		= $(FUNC:%.o=./../func/%.o)
 OBJ		= main.o $(EXT)
 CC		= gcc

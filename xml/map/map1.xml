@@ -35,155 +35,155 @@
                 </directionalUse>
                 <sharedWith>
                   <!--Optional:-->
-                  <overlappingLaneDescriptionProvided/>
+                  <overlappingLaneDescriptionProvided></overlappingLaneDescriptionProvided>
                   <!--Optional:-->
-                  <multipleLanesTreatedAsOneLane/>
+                  <multipleLanesTreatedAsOneLane></multipleLanesTreatedAsOneLane>
                   <!--Optional:-->
-                  <otherNonMotorizedTrafficTypes/>
+                  <otherNonMotorizedTrafficTypes></otherNonMotorizedTrafficTypes>
                   <!--Optional:-->
-                  <individualMotorizedVehicleTraffic/>
+                  <individualMotorizedVehicleTraffic></individualMotorizedVehicleTraffic>
                   <!--Optional:-->
-                  <busVehicleTraffic/>
+                  <busVehicleTraffic></busVehicleTraffic>
                   <!--Optional:-->
-                  <taxiVehicleTraffic/>
+                  <taxiVehicleTraffic></taxiVehicleTraffic>
                   <!--Optional:-->
-                  <pedestriansTraffic/>
+                  <pedestriansTraffic></pedestriansTraffic>
                   <!--Optional:-->
-                  <cyclistVehicleTraffic/>
+                  <cyclistVehicleTraffic></cyclistVehicleTraffic>
                   <!--Optional:-->
-                  <trackedVehicleTraffic/>
+                  <trackedVehicleTraffic></trackedVehicleTraffic>
                   <!--Optional:-->
-                  <pedestrianTraffic/>
+                  <pedestrianTraffic></pedestrianTraffic>
                 </sharedWith>
                 <laneType>
                   <!--You have a CHOICE of the next 8 items at this level-->
                   <vehicle>
                     <!--Optional:-->
-                    <isVehicleRevocableLane/>
+                    <isVehicleRevocableLane></isVehicleRevocableLane>
                     <!--Optional:-->
-                    <isVehicleFlyOverLane/>
+                    <isVehicleFlyOverLane></isVehicleFlyOverLane>
                     <!--Optional:-->
-                    <hovLaneUseOnly/>
+                    <hovLaneUseOnly></hovLaneUseOnly>
                     <!--Optional:-->
-                    <restrictedToBusUse/>
+                    <restrictedToBusUse></restrictedToBusUse>
                     <!--Optional:-->
-                    <restrictedToTaxiUse/>
+                    <restrictedToTaxiUse></restrictedToTaxiUse>
                     <!--Optional:-->
-                    <restrictedFromPublicUse/>
+                    <restrictedFromPublicUse></restrictedFromPublicUse>
                     <!--Optional:-->
-                    <hasIRbeaconCoverage/>
+                    <hasIRbeaconCoverage></hasIRbeaconCoverage>
                     <!--Optional:-->
-                    <permissionOnRequest/>
+                    <permissionOnRequest></permissionOnRequest>
                   </vehicle>
                   <crosswalk>
                     <!--Optional:-->
-                    <crosswalkRevocableLane/>
+                    <crosswalkRevocableLane></crosswalkRevocableLane>
                     <!--Optional:-->
-                    <bicyleUseAllowed/>
+                    <bicyleUseAllowed></bicyleUseAllowed>
                     <!--Optional:-->
-                    <isXwalkFlyOverLane/>
+                    <isXwalkFlyOverLane></isXwalkFlyOverLane>
                     <!--Optional:-->
-                    <fixedCycleTime/>
+                    <fixedCycleTime></fixedCycleTime>
                     <!--Optional:-->
-                    <biDirectionalCycleTimes/>
+                    <biDirectionalCycleTimes></biDirectionalCycleTimes>
                     <!--Optional:-->
-                    <hasPushToWalkButton/>
+                    <hasPushToWalkButton></hasPushToWalkButton>
                     <!--Optional:-->
-                    <audioSupport/>
+                    <audioSupport></audioSupport>
                     <!--Optional:-->
-                    <rfSignalRequestPresent/>
+                    <rfSignalRequestPresent></rfSignalRequestPresent>
                     <!--Optional:-->
-                    <unsignalizedSegmentsPresent/>
+                    <unsignalizedSegmentsPresent></unsignalizedSegmentsPresent>
                   </crosswalk>
                   <bikeLane>
                     <!--Optional:-->
-                    <bikeRevocableLane/>
+                    <bikeRevocableLane></bikeRevocableLane>
                     <!--Optional:-->
-                    <pedestrianUseAllowed/>
+                    <pedestrianUseAllowed></pedestrianUseAllowed>
                     <!--Optional:-->
-                    <isBikeFlyOverLane/>
+                    <isBikeFlyOverLane></isBikeFlyOverLane>
                     <!--Optional:-->
-                    <fixedCycleTime/>
+                    <fixedCycleTime></fixedCycleTime>
                     <!--Optional:-->
-                    <biDirectionalCycleTimes/>
+                    <biDirectionalCycleTimes></biDirectionalCycleTimes>
                     <!--Optional:-->
-                    <isolatedByBarrier/>
+                    <isolatedByBarrier></isolatedByBarrier>
                     <!--Optional:-->
-                    <unsignalizedSegmentsPresent/>
+                    <unsignalizedSegmentsPresent></unsignalizedSegmentsPresent>
                   </bikeLane>
                   <sidewalk>
                     <!--Optional:-->
-                    <sidewalk-RevocableLane/>
+                    <sidewalk-RevocableLane></sidewalk-RevocableLane>
                     <!--Optional:-->
-                    <bicyleUseAllowed/>
+                    <bicyleUseAllowed></bicyleUseAllowed>
                     <!--Optional:-->
-                    <isSidewalkFlyOverLane/>
+                    <isSidewalkFlyOverLane></isSidewalkFlyOverLane>
                     <!--Optional:-->
-                    <walkBikes/>
+                    <walkBikes></walkBikes>
                   </sidewalk>
                   <median>
                     <!--Optional:-->
-                    <median-RevocableLane/>
+                    <median-RevocableLane></median-RevocableLane>
                     <!--Optional:-->
-                    <median/>
+                    <median></median>
                     <!--Optional:-->
-                    <whiteLineHashing/>
+                    <whiteLineHashing></whiteLineHashing>
                     <!--Optional:-->
-                    <stripedLines/>
+                    <stripedLines></stripedLines>
                     <!--Optional:-->
-                    <doubleStripedLines/>
+                    <doubleStripedLines></doubleStripedLines>
                     <!--Optional:-->
-                    <trafficCones/>
+                    <trafficCones></trafficCones>
                     <!--Optional:-->
-                    <constructionBarrier/>
+                    <constructionBarrier></constructionBarrier>
                     <!--Optional:-->
-                    <trafficChannels/>
+                    <trafficChannels></trafficChannels>
                     <!--Optional:-->
-                    <lowCurbs/>
+                    <lowCurbs></lowCurbs>
                     <!--Optional:-->
-                    <highCurbs/>
+                    <highCurbs></highCurbs>
                   </median>
                   <striping>
                     <!--Optional:-->
-                    <stripeToConnectingLanesRevocableLane/>
+                    <stripeToConnectingLanesRevocableLane></stripeToConnectingLanesRevocableLane>
                     <!--Optional:-->
-                    <stripeDrawOnLeft/>
+                    <stripeDrawOnLeft></stripeDrawOnLeft>
                     <!--Optional:-->
-                    <stripeDrawOnRight/>
+                    <stripeDrawOnRight></stripeDrawOnRight>
                     <!--Optional:-->
-                    <stripeToConnectingLanesLeft/>
+                    <stripeToConnectingLanesLeft></stripeToConnectingLanesLeft>
                     <!--Optional:-->
-                    <stripeToConnectingLanesRight/>
+                    <stripeToConnectingLanesRight></stripeToConnectingLanesRight>
                     <!--Optional:-->
-                    <stripeToConnectingLanesAhead/>
+                    <stripeToConnectingLanesAhead></stripeToConnectingLanesAhead>
                   </striping>
                   <trackedVehicle>
                     <!--Optional:-->
-                    <spec-RevocableLane/>
+                    <spec-RevocableLane></spec-RevocableLane>
                     <!--Optional:-->
-                    <spec-commuterRailRoadTrack/>
+                    <spec-commuterRailRoadTrack></spec-commuterRailRoadTrack>
                     <!--Optional:-->
-                    <spec-lightRailRoadTrack/>
+                    <spec-lightRailRoadTrack></spec-lightRailRoadTrack>
                     <!--Optional:-->
-                    <spec-heavyRailRoadTrack/>
+                    <spec-heavyRailRoadTrack></spec-heavyRailRoadTrack>
                     <!--Optional:-->
-                    <spec-otherRailType/>
+                    <spec-otherRailType></spec-otherRailType>
                   </trackedVehicle>
                   <parking>
                     <!--Optional:-->
-                    <parkingRevocableLane/>
+                    <parkingRevocableLane></parkingRevocableLane>
                     <!--Optional:-->
-                    <parallelParkingInUse/>
+                    <parallelParkingInUse></parallelParkingInUse>
                     <!--Optional:-->
-                    <headInParkingInUse/>
+                    <headInParkingInUse></headInParkingInUse>
                     <!--Optional:-->
-                    <doNotParkZone/>
+                    <doNotParkZone></doNotParkZone>
                     <!--Optional:-->
-                    <parkingForBusUse/>
+                    <parkingForBusUse></parkingForBusUse>
                     <!--Optional:-->
-                    <parkingForTaxiUse/>
+                    <parkingForTaxiUse></parkingForTaxiUse>
                     <!--Optional:-->
-                    <noPublicParkingUse/>
+                    <noPublicParkingUse></noPublicParkingUse>
                   </parking>
                 </laneType>
               </laneAttributes>
@@ -222,143 +222,6 @@
                         <lat>3</lat>
                       </node-LatLon>
                     </delta>
-                    <!--Optional:-->
-                    <attributes>
-                      <!--Optional:-->
-                      <localNode>
-                        <!--You have a CHOICE of the next 12 items at this level-->
-                        <reserved/>
-                        <stopLine/>
-                        <roundedCapStyleA/>
-                        <roundedCapStyleB/>
-                        <mergePoint/>
-                        <divergePoint/>
-                        <downstreamStopLine/>
-                        <downstreamStartNode/>
-                        <closedToTraffic/>
-                        <safeIsland/>
-                        <curbPresentAtStepOff/>
-                        <hydrantPresent/>
-                      </localNode>
-                      <!--Optional:-->
-                      <disabled>
-                        <!--You have a CHOICE of the next 38 items at this level-->
-                        <reserved/>
-                        <doNotBlock/>
-                        <whiteLine/>
-                        <mergingLaneLeft/>
-                        <mergingLaneRight/>
-                        <curbOnLeft/>
-                        <curbOnRight/>
-                        <loadingzoneOnLeft/>
-                        <loadingzoneOnRight/>
-                        <turnOutPointOnLeft/>
-                        <turnOutPointOnRight/>
-                        <adjacentParkingOnLeft/>
-                        <adjacentParkingOnRight/>
-                        <adjacentBikeLaneOnLeft/>
-                        <adjacentBikeLaneOnRight/>
-                        <sharedBikeLane/>
-                        <bikeBoxInFront/>
-                        <transitStopOnLeft/>
-                        <transitStopOnRight/>
-                        <transitStopInLane/>
-                        <sharedWithTrackedVehicle/>
-                        <safeIsland/>
-                        <lowCurbsPresent/>
-                        <rumbleStripPresent/>
-                        <audibleSignalingPresent/>
-                        <adaptiveTimingPresent/>
-                        <rfSignalRequestPresent/>
-                        <partialCurbIntrusion/>
-                        <taperToLeft/>
-                        <taperToRight/>
-                        <taperToCenterLine/>
-                        <parallelParking/>
-                        <headInParking/>
-                        <freeParking/>
-                        <timeRestrictionsOnParking/>
-                        <costToPark/>
-                        <midBlockCurbPresent/>
-                        <unEvenPavementPresent/>
-                      </disabled>
-                      <!--Optional:-->
-                      <enabled>
-                        <!--You have a CHOICE of the next 38 items at this level-->
-                        <reserved/>
-                        <doNotBlock/>
-                        <whiteLine/>
-                        <mergingLaneLeft/>
-                        <mergingLaneRight/>
-                        <curbOnLeft/>
-                        <curbOnRight/>
-                        <loadingzoneOnLeft/>
-                        <loadingzoneOnRight/>
-                        <turnOutPointOnLeft/>
-                        <turnOutPointOnRight/>
-                        <adjacentParkingOnLeft/>
-                        <adjacentParkingOnRight/>
-                        <adjacentBikeLaneOnLeft/>
-                        <adjacentBikeLaneOnRight/>
-                        <sharedBikeLane/>
-                        <bikeBoxInFront/>
-                        <transitStopOnLeft/>
-                        <transitStopOnRight/>
-                        <transitStopInLane/>
-                        <sharedWithTrackedVehicle/>
-                        <safeIsland/>
-                        <lowCurbsPresent/>
-                        <rumbleStripPresent/>
-                        <audibleSignalingPresent/>
-                        <adaptiveTimingPresent/>
-                        <rfSignalRequestPresent/>
-                        <partialCurbIntrusion/>
-                        <taperToLeft/>
-                        <taperToRight/>
-                        <taperToCenterLine/>
-                        <parallelParking/>
-                        <headInParking/>
-                        <freeParking/>
-                        <timeRestrictionsOnParking/>
-                        <costToPark/>
-                        <midBlockCurbPresent/>
-                        <unEvenPavementPresent/>
-                      </enabled>
-                      <!--Optional:-->
-                      <data>
-                        <!--You have a CHOICE of the next 6 items at this level-->
-                        <pathEndPointAngle>1</pathEndPointAngle>
-                        <laneCrownPointCenter>2</laneCrownPointCenter>
-                        <laneCrownPointLeft>2</laneCrownPointLeft>
-                        <laneCrownPointRight>2</laneCrownPointRight>
-                        <laneAngle>1</laneAngle>
-                        <speedLimits>
-                          <RegulatorySpeedLimit>
-                            <type>
-                              <!--You have a CHOICE of the next 13 items at this level-->
-                              <unknown/>
-                              <maxSpeedInSchoolZone/>
-                              <maxSpeedInSchoolZoneWhenChildrenArePresent/>
-                              <maxSpeedInConstructionZone/>
-                              <vehicleMinSpeed/>
-                              <vehicleMaxSpeed/>
-                              <vehicleNightMaxSpeed/>
-                              <truckMinSpeed/>
-                              <truckMaxSpeed/>
-                              <truckNightMaxSpeed/>
-                              <vehiclesWithTrailersMinSpeed/>
-                              <vehiclesWithTrailersMaxSpeed/>
-                              <vehiclesWithTrailersNightMaxSpeed/>
-                            </type>
-                            <speed>5</speed>
-                          </RegulatorySpeedLimit>
-                        </speedLimits>
-                      </data>
-                      <!--Optional:-->
-                      <dWidth>1</dWidth>
-                      <!--Optional:-->
-                      <dElevation>1</dElevation>
-                    </attributes>
                   </NodeXY>
                   <NodeXY>
                     <delta>
@@ -392,143 +255,6 @@
                         <lat>3</lat>
                       </node-LatLon>
                     </delta>
-                    <!--Optional:-->
-                    <attributes>
-                      <!--Optional:-->
-                      <localNode>
-                        <!--You have a CHOICE of the next 12 items at this level-->
-                        <reserved/>
-                        <stopLine/>
-                        <roundedCapStyleA/>
-                        <roundedCapStyleB/>
-                        <mergePoint/>
-                        <divergePoint/>
-                        <downstreamStopLine/>
-                        <downstreamStartNode/>
-                        <closedToTraffic/>
-                        <safeIsland/>
-                        <curbPresentAtStepOff/>
-                        <hydrantPresent/>
-                      </localNode>
-                      <!--Optional:-->
-                      <disabled>
-                        <!--You have a CHOICE of the next 38 items at this level-->
-                        <reserved/>
-                        <doNotBlock/>
-                        <whiteLine/>
-                        <mergingLaneLeft/>
-                        <mergingLaneRight/>
-                        <curbOnLeft/>
-                        <curbOnRight/>
-                        <loadingzoneOnLeft/>
-                        <loadingzoneOnRight/>
-                        <turnOutPointOnLeft/>
-                        <turnOutPointOnRight/>
-                        <adjacentParkingOnLeft/>
-                        <adjacentParkingOnRight/>
-                        <adjacentBikeLaneOnLeft/>
-                        <adjacentBikeLaneOnRight/>
-                        <sharedBikeLane/>
-                        <bikeBoxInFront/>
-                        <transitStopOnLeft/>
-                        <transitStopOnRight/>
-                        <transitStopInLane/>
-                        <sharedWithTrackedVehicle/>
-                        <safeIsland/>
-                        <lowCurbsPresent/>
-                        <rumbleStripPresent/>
-                        <audibleSignalingPresent/>
-                        <adaptiveTimingPresent/>
-                        <rfSignalRequestPresent/>
-                        <partialCurbIntrusion/>
-                        <taperToLeft/>
-                        <taperToRight/>
-                        <taperToCenterLine/>
-                        <parallelParking/>
-                        <headInParking/>
-                        <freeParking/>
-                        <timeRestrictionsOnParking/>
-                        <costToPark/>
-                        <midBlockCurbPresent/>
-                        <unEvenPavementPresent/>
-                      </disabled>
-                      <!--Optional:-->
-                      <enabled>
-                        <!--You have a CHOICE of the next 38 items at this level-->
-                        <reserved/>
-                        <doNotBlock/>
-                        <whiteLine/>
-                        <mergingLaneLeft/>
-                        <mergingLaneRight/>
-                        <curbOnLeft/>
-                        <curbOnRight/>
-                        <loadingzoneOnLeft/>
-                        <loadingzoneOnRight/>
-                        <turnOutPointOnLeft/>
-                        <turnOutPointOnRight/>
-                        <adjacentParkingOnLeft/>
-                        <adjacentParkingOnRight/>
-                        <adjacentBikeLaneOnLeft/>
-                        <adjacentBikeLaneOnRight/>
-                        <sharedBikeLane/>
-                        <bikeBoxInFront/>
-                        <transitStopOnLeft/>
-                        <transitStopOnRight/>
-                        <transitStopInLane/>
-                        <sharedWithTrackedVehicle/>
-                        <safeIsland/>
-                        <lowCurbsPresent/>
-                        <rumbleStripPresent/>
-                        <audibleSignalingPresent/>
-                        <adaptiveTimingPresent/>
-                        <rfSignalRequestPresent/>
-                        <partialCurbIntrusion/>
-                        <taperToLeft/>
-                        <taperToRight/>
-                        <taperToCenterLine/>
-                        <parallelParking/>
-                        <headInParking/>
-                        <freeParking/>
-                        <timeRestrictionsOnParking/>
-                        <costToPark/>
-                        <midBlockCurbPresent/>
-                        <unEvenPavementPresent/>
-                      </enabled>
-                      <!--Optional:-->
-                      <data>
-                        <!--You have a CHOICE of the next 6 items at this level-->
-                        <pathEndPointAngle>1</pathEndPointAngle>
-                        <laneCrownPointCenter>2</laneCrownPointCenter>
-                        <laneCrownPointLeft>2</laneCrownPointLeft>
-                        <laneCrownPointRight>2</laneCrownPointRight>
-                        <laneAngle>1</laneAngle>
-                        <speedLimits>
-                          <RegulatorySpeedLimit>
-                            <type>
-                              <!--You have a CHOICE of the next 13 items at this level-->
-                              <unknown/>
-                              <maxSpeedInSchoolZone/>
-                              <maxSpeedInSchoolZoneWhenChildrenArePresent/>
-                              <maxSpeedInConstructionZone/>
-                              <vehicleMinSpeed/>
-                              <vehicleMaxSpeed/>
-                              <vehicleNightMaxSpeed/>
-                              <truckMinSpeed/>
-                              <truckMaxSpeed/>
-                              <truckNightMaxSpeed/>
-                              <vehiclesWithTrailersMinSpeed/>
-                              <vehiclesWithTrailersMaxSpeed/>
-                              <vehiclesWithTrailersNightMaxSpeed/>
-                            </type>
-                            <speed>5</speed>
-                          </RegulatorySpeedLimit>
-                        </speedLimits>
-                      </data>
-                      <!--Optional:-->
-                      <dWidth>1</dWidth>
-                      <!--Optional:-->
-                      <dElevation>1</dElevation>
-                    </attributes>
                   </NodeXY>
                 </nodes>
                 <computed>
@@ -581,155 +307,155 @@
                 </directionalUse>
                 <sharedWith>
                   <!--Optional:-->
-                  <overlappingLaneDescriptionProvided/>
+                  <overlappingLaneDescriptionProvided></overlappingLaneDescriptionProvided>
                   <!--Optional:-->
-                  <multipleLanesTreatedAsOneLane/>
+                  <multipleLanesTreatedAsOneLane></multipleLanesTreatedAsOneLane>
                   <!--Optional:-->
-                  <otherNonMotorizedTrafficTypes/>
+                  <otherNonMotorizedTrafficTypes></otherNonMotorizedTrafficTypes>
                   <!--Optional:-->
-                  <individualMotorizedVehicleTraffic/>
+                  <individualMotorizedVehicleTraffic></individualMotorizedVehicleTraffic>
                   <!--Optional:-->
-                  <busVehicleTraffic/>
+                  <busVehicleTraffic></busVehicleTraffic>
                   <!--Optional:-->
-                  <taxiVehicleTraffic/>
+                  <taxiVehicleTraffic></taxiVehicleTraffic>
                   <!--Optional:-->
-                  <pedestriansTraffic/>
+                  <pedestriansTraffic></pedestriansTraffic>
                   <!--Optional:-->
-                  <cyclistVehicleTraffic/>
+                  <cyclistVehicleTraffic></cyclistVehicleTraffic>
                   <!--Optional:-->
-                  <trackedVehicleTraffic/>
+                  <trackedVehicleTraffic></trackedVehicleTraffic>
                   <!--Optional:-->
-                  <pedestrianTraffic/>
+                  <pedestrianTraffic></pedestrianTraffic>
                 </sharedWith>
                 <laneType>
                   <!--You have a CHOICE of the next 8 items at this level-->
                   <vehicle>
                     <!--Optional:-->
-                    <isVehicleRevocableLane/>
+                    <isVehicleRevocableLane></isVehicleRevocableLane>
                     <!--Optional:-->
-                    <isVehicleFlyOverLane/>
+                    <isVehicleFlyOverLane></isVehicleFlyOverLane>
                     <!--Optional:-->
-                    <hovLaneUseOnly/>
+                    <hovLaneUseOnly></hovLaneUseOnly>
                     <!--Optional:-->
-                    <restrictedToBusUse/>
+                    <restrictedToBusUse></restrictedToBusUse>
                     <!--Optional:-->
-                    <restrictedToTaxiUse/>
+                    <restrictedToTaxiUse></restrictedToTaxiUse>
                     <!--Optional:-->
-                    <restrictedFromPublicUse/>
+                    <restrictedFromPublicUse></restrictedFromPublicUse>
                     <!--Optional:-->
-                    <hasIRbeaconCoverage/>
+                    <hasIRbeaconCoverage></hasIRbeaconCoverage>
                     <!--Optional:-->
-                    <permissionOnRequest/>
+                    <permissionOnRequest></permissionOnRequest>
                   </vehicle>
                   <crosswalk>
                     <!--Optional:-->
-                    <crosswalkRevocableLane/>
+                    <crosswalkRevocableLane></crosswalkRevocableLane>
                     <!--Optional:-->
-                    <bicyleUseAllowed/>
+                    <bicyleUseAllowed></bicyleUseAllowed>
                     <!--Optional:-->
-                    <isXwalkFlyOverLane/>
+                    <isXwalkFlyOverLane></isXwalkFlyOverLane>
                     <!--Optional:-->
-                    <fixedCycleTime/>
+                    <fixedCycleTime></fixedCycleTime>
                     <!--Optional:-->
-                    <biDirectionalCycleTimes/>
+                    <biDirectionalCycleTimes></biDirectionalCycleTimes>
                     <!--Optional:-->
-                    <hasPushToWalkButton/>
+                    <hasPushToWalkButton></hasPushToWalkButton>
                     <!--Optional:-->
-                    <audioSupport/>
+                    <audioSupport></audioSupport>
                     <!--Optional:-->
-                    <rfSignalRequestPresent/>
+                    <rfSignalRequestPresent></rfSignalRequestPresent>
                     <!--Optional:-->
-                    <unsignalizedSegmentsPresent/>
+                    <unsignalizedSegmentsPresent></unsignalizedSegmentsPresent>
                   </crosswalk>
                   <bikeLane>
                     <!--Optional:-->
-                    <bikeRevocableLane/>
+                    <bikeRevocableLane></bikeRevocableLane>
                     <!--Optional:-->
-                    <pedestrianUseAllowed/>
+                    <pedestrianUseAllowed></pedestrianUseAllowed>
                     <!--Optional:-->
-                    <isBikeFlyOverLane/>
+                    <isBikeFlyOverLane></isBikeFlyOverLane>
                     <!--Optional:-->
-                    <fixedCycleTime/>
+                    <fixedCycleTime></fixedCycleTime>
                     <!--Optional:-->
-                    <biDirectionalCycleTimes/>
+                    <biDirectionalCycleTimes></biDirectionalCycleTimes>
                     <!--Optional:-->
-                    <isolatedByBarrier/>
+                    <isolatedByBarrier></isolatedByBarrier>
                     <!--Optional:-->
-                    <unsignalizedSegmentsPresent/>
+                    <unsignalizedSegmentsPresent></unsignalizedSegmentsPresent>
                   </bikeLane>
                   <sidewalk>
                     <!--Optional:-->
-                    <sidewalk-RevocableLane/>
+                    <sidewalk-RevocableLane></sidewalk-RevocableLane>
                     <!--Optional:-->
-                    <bicyleUseAllowed/>
+                    <bicyleUseAllowed></bicyleUseAllowed>
                     <!--Optional:-->
-                    <isSidewalkFlyOverLane/>
+                    <isSidewalkFlyOverLane></isSidewalkFlyOverLane>
                     <!--Optional:-->
-                    <walkBikes/>
+                    <walkBikes></walkBikes>
                   </sidewalk>
                   <median>
                     <!--Optional:-->
-                    <median-RevocableLane/>
+                    <median-RevocableLane></median-RevocableLane>
                     <!--Optional:-->
-                    <median/>
+                    <median></median>
                     <!--Optional:-->
-                    <whiteLineHashing/>
+                    <whiteLineHashing></whiteLineHashing>
                     <!--Optional:-->
-                    <stripedLines/>
+                    <stripedLines></stripedLines>
                     <!--Optional:-->
-                    <doubleStripedLines/>
+                    <doubleStripedLines></doubleStripedLines>
                     <!--Optional:-->
-                    <trafficCones/>
+                    <trafficCones></trafficCones>
                     <!--Optional:-->
-                    <constructionBarrier/>
+                    <constructionBarrier></constructionBarrier>
                     <!--Optional:-->
-                    <trafficChannels/>
+                    <trafficChannels></trafficChannels>
                     <!--Optional:-->
-                    <lowCurbs/>
+                    <lowCurbs></lowCurbs>
                     <!--Optional:-->
-                    <highCurbs/>
+                    <highCurbs></highCurbs>
                   </median>
                   <striping>
                     <!--Optional:-->
-                    <stripeToConnectingLanesRevocableLane/>
+                    <stripeToConnectingLanesRevocableLane></stripeToConnectingLanesRevocableLane>
                     <!--Optional:-->
-                    <stripeDrawOnLeft/>
+                    <stripeDrawOnLeft></stripeDrawOnLeft>
                     <!--Optional:-->
-                    <stripeDrawOnRight/>
+                    <stripeDrawOnRight></stripeDrawOnRight>
                     <!--Optional:-->
-                    <stripeToConnectingLanesLeft/>
+                    <stripeToConnectingLanesLeft></stripeToConnectingLanesLeft>
                     <!--Optional:-->
-                    <stripeToConnectingLanesRight/>
+                    <stripeToConnectingLanesRight></stripeToConnectingLanesRight>
                     <!--Optional:-->
-                    <stripeToConnectingLanesAhead/>
+                    <stripeToConnectingLanesAhead></stripeToConnectingLanesAhead>
                   </striping>
                   <trackedVehicle>
                     <!--Optional:-->
-                    <spec-RevocableLane/>
+                    <spec-RevocableLane></spec-RevocableLane>
                     <!--Optional:-->
-                    <spec-commuterRailRoadTrack/>
+                    <spec-commuterRailRoadTrack></spec-commuterRailRoadTrack>
                     <!--Optional:-->
-                    <spec-lightRailRoadTrack/>
+                    <spec-lightRailRoadTrack></spec-lightRailRoadTrack>
                     <!--Optional:-->
-                    <spec-heavyRailRoadTrack/>
+                    <spec-heavyRailRoadTrack></spec-heavyRailRoadTrack>
                     <!--Optional:-->
-                    <spec-otherRailType/>
+                    <spec-otherRailType></spec-otherRailType>
                   </trackedVehicle>
                   <parking>
                     <!--Optional:-->
-                    <parkingRevocableLane/>
+                    <parkingRevocableLane></parkingRevocableLane>
                     <!--Optional:-->
-                    <parallelParkingInUse/>
+                    <parallelParkingInUse></parallelParkingInUse>
                     <!--Optional:-->
-                    <headInParkingInUse/>
+                    <headInParkingInUse></headInParkingInUse>
                     <!--Optional:-->
-                    <doNotParkZone/>
+                    <doNotParkZone></doNotParkZone>
                     <!--Optional:-->
-                    <parkingForBusUse/>
+                    <parkingForBusUse></parkingForBusUse>
                     <!--Optional:-->
-                    <parkingForTaxiUse/>
+                    <parkingForTaxiUse></parkingForTaxiUse>
                     <!--Optional:-->
-                    <noPublicParkingUse/>
+                    <noPublicParkingUse></noPublicParkingUse>
                   </parking>
                 </laneType>
               </laneAttributes>
@@ -768,143 +494,6 @@
                         <lat>3</lat>
                       </node-LatLon>
                     </delta>
-                    <!--Optional:-->
-                    <attributes>
-                      <!--Optional:-->
-                      <localNode>
-                        <!--You have a CHOICE of the next 12 items at this level-->
-                        <reserved/>
-                        <stopLine/>
-                        <roundedCapStyleA/>
-                        <roundedCapStyleB/>
-                        <mergePoint/>
-                        <divergePoint/>
-                        <downstreamStopLine/>
-                        <downstreamStartNode/>
-                        <closedToTraffic/>
-                        <safeIsland/>
-                        <curbPresentAtStepOff/>
-                        <hydrantPresent/>
-                      </localNode>
-                      <!--Optional:-->
-                      <disabled>
-                        <!--You have a CHOICE of the next 38 items at this level-->
-                        <reserved/>
-                        <doNotBlock/>
-                        <whiteLine/>
-                        <mergingLaneLeft/>
-                        <mergingLaneRight/>
-                        <curbOnLeft/>
-                        <curbOnRight/>
-                        <loadingzoneOnLeft/>
-                        <loadingzoneOnRight/>
-                        <turnOutPointOnLeft/>
-                        <turnOutPointOnRight/>
-                        <adjacentParkingOnLeft/>
-                        <adjacentParkingOnRight/>
-                        <adjacentBikeLaneOnLeft/>
-                        <adjacentBikeLaneOnRight/>
-                        <sharedBikeLane/>
-                        <bikeBoxInFront/>
-                        <transitStopOnLeft/>
-                        <transitStopOnRight/>
-                        <transitStopInLane/>
-                        <sharedWithTrackedVehicle/>
-                        <safeIsland/>
-                        <lowCurbsPresent/>
-                        <rumbleStripPresent/>
-                        <audibleSignalingPresent/>
-                        <adaptiveTimingPresent/>
-                        <rfSignalRequestPresent/>
-                        <partialCurbIntrusion/>
-                        <taperToLeft/>
-                        <taperToRight/>
-                        <taperToCenterLine/>
-                        <parallelParking/>
-                        <headInParking/>
-                        <freeParking/>
-                        <timeRestrictionsOnParking/>
-                        <costToPark/>
-                        <midBlockCurbPresent/>
-                        <unEvenPavementPresent/>
-                      </disabled>
-                      <!--Optional:-->
-                      <enabled>
-                        <!--You have a CHOICE of the next 38 items at this level-->
-                        <reserved/>
-                        <doNotBlock/>
-                        <whiteLine/>
-                        <mergingLaneLeft/>
-                        <mergingLaneRight/>
-                        <curbOnLeft/>
-                        <curbOnRight/>
-                        <loadingzoneOnLeft/>
-                        <loadingzoneOnRight/>
-                        <turnOutPointOnLeft/>
-                        <turnOutPointOnRight/>
-                        <adjacentParkingOnLeft/>
-                        <adjacentParkingOnRight/>
-                        <adjacentBikeLaneOnLeft/>
-                        <adjacentBikeLaneOnRight/>
-                        <sharedBikeLane/>
-                        <bikeBoxInFront/>
-                        <transitStopOnLeft/>
-                        <transitStopOnRight/>
-                        <transitStopInLane/>
-                        <sharedWithTrackedVehicle/>
-                        <safeIsland/>
-                        <lowCurbsPresent/>
-                        <rumbleStripPresent/>
-                        <audibleSignalingPresent/>
-                        <adaptiveTimingPresent/>
-                        <rfSignalRequestPresent/>
-                        <partialCurbIntrusion/>
-                        <taperToLeft/>
-                        <taperToRight/>
-                        <taperToCenterLine/>
-                        <parallelParking/>
-                        <headInParking/>
-                        <freeParking/>
-                        <timeRestrictionsOnParking/>
-                        <costToPark/>
-                        <midBlockCurbPresent/>
-                        <unEvenPavementPresent/>
-                      </enabled>
-                      <!--Optional:-->
-                      <data>
-                        <!--You have a CHOICE of the next 6 items at this level-->
-                        <pathEndPointAngle>1</pathEndPointAngle>
-                        <laneCrownPointCenter>2</laneCrownPointCenter>
-                        <laneCrownPointLeft>2</laneCrownPointLeft>
-                        <laneCrownPointRight>2</laneCrownPointRight>
-                        <laneAngle>1</laneAngle>
-                        <speedLimits>
-                          <RegulatorySpeedLimit>
-                            <type>
-                              <!--You have a CHOICE of the next 13 items at this level-->
-                              <unknown/>
-                              <maxSpeedInSchoolZone/>
-                              <maxSpeedInSchoolZoneWhenChildrenArePresent/>
-                              <maxSpeedInConstructionZone/>
-                              <vehicleMinSpeed/>
-                              <vehicleMaxSpeed/>
-                              <vehicleNightMaxSpeed/>
-                              <truckMinSpeed/>
-                              <truckMaxSpeed/>
-                              <truckNightMaxSpeed/>
-                              <vehiclesWithTrailersMinSpeed/>
-                              <vehiclesWithTrailersMaxSpeed/>
-                              <vehiclesWithTrailersNightMaxSpeed/>
-                            </type>
-                            <speed>5</speed>
-                          </RegulatorySpeedLimit>
-                        </speedLimits>
-                      </data>
-                      <!--Optional:-->
-                      <dWidth>1</dWidth>
-                      <!--Optional:-->
-                      <dElevation>1</dElevation>
-                    </attributes>
                   </NodeXY>
                   <NodeXY>
                     <delta>
@@ -938,143 +527,6 @@
                         <lat>3</lat>
                       </node-LatLon>
                     </delta>
-                    <!--Optional:-->
-                    <attributes>
-                      <!--Optional:-->
-                      <localNode>
-                        <!--You have a CHOICE of the next 12 items at this level-->
-                        <reserved/>
-                        <stopLine/>
-                        <roundedCapStyleA/>
-                        <roundedCapStyleB/>
-                        <mergePoint/>
-                        <divergePoint/>
-                        <downstreamStopLine/>
-                        <downstreamStartNode/>
-                        <closedToTraffic/>
-                        <safeIsland/>
-                        <curbPresentAtStepOff/>
-                        <hydrantPresent/>
-                      </localNode>
-                      <!--Optional:-->
-                      <disabled>
-                        <!--You have a CHOICE of the next 38 items at this level-->
-                        <reserved/>
-                        <doNotBlock/>
-                        <whiteLine/>
-                        <mergingLaneLeft/>
-                        <mergingLaneRight/>
-                        <curbOnLeft/>
-                        <curbOnRight/>
-                        <loadingzoneOnLeft/>
-                        <loadingzoneOnRight/>
-                        <turnOutPointOnLeft/>
-                        <turnOutPointOnRight/>
-                        <adjacentParkingOnLeft/>
-                        <adjacentParkingOnRight/>
-                        <adjacentBikeLaneOnLeft/>
-                        <adjacentBikeLaneOnRight/>
-                        <sharedBikeLane/>
-                        <bikeBoxInFront/>
-                        <transitStopOnLeft/>
-                        <transitStopOnRight/>
-                        <transitStopInLane/>
-                        <sharedWithTrackedVehicle/>
-                        <safeIsland/>
-                        <lowCurbsPresent/>
-                        <rumbleStripPresent/>
-                        <audibleSignalingPresent/>
-                        <adaptiveTimingPresent/>
-                        <rfSignalRequestPresent/>
-                        <partialCurbIntrusion/>
-                        <taperToLeft/>
-                        <taperToRight/>
-                        <taperToCenterLine/>
-                        <parallelParking/>
-                        <headInParking/>
-                        <freeParking/>
-                        <timeRestrictionsOnParking/>
-                        <costToPark/>
-                        <midBlockCurbPresent/>
-                        <unEvenPavementPresent/>
-                      </disabled>
-                      <!--Optional:-->
-                      <enabled>
-                        <!--You have a CHOICE of the next 38 items at this level-->
-                        <reserved/>
-                        <doNotBlock/>
-                        <whiteLine/>
-                        <mergingLaneLeft/>
-                        <mergingLaneRight/>
-                        <curbOnLeft/>
-                        <curbOnRight/>
-                        <loadingzoneOnLeft/>
-                        <loadingzoneOnRight/>
-                        <turnOutPointOnLeft/>
-                        <turnOutPointOnRight/>
-                        <adjacentParkingOnLeft/>
-                        <adjacentParkingOnRight/>
-                        <adjacentBikeLaneOnLeft/>
-                        <adjacentBikeLaneOnRight/>
-                        <sharedBikeLane/>
-                        <bikeBoxInFront/>
-                        <transitStopOnLeft/>
-                        <transitStopOnRight/>
-                        <transitStopInLane/>
-                        <sharedWithTrackedVehicle/>
-                        <safeIsland/>
-                        <lowCurbsPresent/>
-                        <rumbleStripPresent/>
-                        <audibleSignalingPresent/>
-                        <adaptiveTimingPresent/>
-                        <rfSignalRequestPresent/>
-                        <partialCurbIntrusion/>
-                        <taperToLeft/>
-                        <taperToRight/>
-                        <taperToCenterLine/>
-                        <parallelParking/>
-                        <headInParking/>
-                        <freeParking/>
-                        <timeRestrictionsOnParking/>
-                        <costToPark/>
-                        <midBlockCurbPresent/>
-                        <unEvenPavementPresent/>
-                      </enabled>
-                      <!--Optional:-->
-                      <data>
-                        <!--You have a CHOICE of the next 6 items at this level-->
-                        <pathEndPointAngle>1</pathEndPointAngle>
-                        <laneCrownPointCenter>2</laneCrownPointCenter>
-                        <laneCrownPointLeft>2</laneCrownPointLeft>
-                        <laneCrownPointRight>2</laneCrownPointRight>
-                        <laneAngle>1</laneAngle>
-                        <speedLimits>
-                          <RegulatorySpeedLimit>
-                            <type>
-                              <!--You have a CHOICE of the next 13 items at this level-->
-                              <unknown/>
-                              <maxSpeedInSchoolZone/>
-                              <maxSpeedInSchoolZoneWhenChildrenArePresent/>
-                              <maxSpeedInConstructionZone/>
-                              <vehicleMinSpeed/>
-                              <vehicleMaxSpeed/>
-                              <vehicleNightMaxSpeed/>
-                              <truckMinSpeed/>
-                              <truckMaxSpeed/>
-                              <truckNightMaxSpeed/>
-                              <vehiclesWithTrailersMinSpeed/>
-                              <vehiclesWithTrailersMaxSpeed/>
-                              <vehiclesWithTrailersNightMaxSpeed/>
-                            </type>
-                            <speed>5</speed>
-                          </RegulatorySpeedLimit>
-                        </speedLimits>
-                      </data>
-                      <!--Optional:-->
-                      <dWidth>1</dWidth>
-                      <!--Optional:-->
-                      <dElevation>1</dElevation>
-                    </attributes>
                   </NodeXY>
                 </nodes>
                 <computed>

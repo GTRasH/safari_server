@@ -7,6 +7,7 @@
 #include <socket.h>
 #include <xml.h>
 #include <sql.h>
+// #include <msg_queue.h>
 
 #define REQ_SERV "./../xml/client_manager/req_serv.xml"
 #define REQ_AUTH "./../xml/client_manager/req_auth.xml"

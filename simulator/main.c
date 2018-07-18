@@ -17,6 +17,7 @@ int main (void) {
 	xmlListHead * mapHead, * spatHead;
 	xmlListElement * mapElement, * spatElement;
 	int uds, msgSocket;
+	char * timeStr;
 	socklen_t addrlen;
 	struct sockaddr_un address;
 	
@@ -51,11 +52,12 @@ int main (void) {
 	while((msgSocket = accept(uds, (struct sockaddr *) &address, &addrlen)) >= 0) {
 		fprintf(stdout, "- Message Manager verbunden\n");
 	
-//		do {
+		while(1) {
 			// SPaT Nachrichten senden
 			spatElement = spatHead->first;
 			while (spatElement->ptr != NULL) {
-				setNodeValue(spatElement->ptr, "//timeStamp", int2string(time(NULL)));
+				timeStr = int2string(time(NULL));
+				setNodeValue(spatElement->ptr, "//timeStamp", timeStr);
 				sendMessage(msgSocket, spatElement->ptr);
 				spatElement = spatElement->next;
 				sleep(1);
@@ -63,15 +65,16 @@ int main (void) {
 			// MAP Nachrichten senden
 			mapElement = mapHead->first;
 			while (mapElement->ptr != NULL) {
-				setNodeValue(mapElement->ptr, "//timeStamp", int2string(time(NULL)));
+				timeStr = int2string(time(NULL));
+				setNodeValue(mapElement->ptr, "//timeStamp", timeStr);
 				sendMessage(msgSocket, mapElement->ptr);
 				mapElement = mapElement->next;
 				sleep(1);
 			}
-			char *buffer = "quit";
-			send(msgSocket, buffer, MSG_BUF, 0);
+		//	char *buffer = "quit";
+		//	send(msgSocket, buffer, MSG_BUF, 0);
         
-//		} while (strcmp(xmlbuff, "complete"));
+		}
 	}
  	close (uds);
 	return EXIT_SUCCESS;

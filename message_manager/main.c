@@ -11,17 +11,20 @@
 #include <sql.h>
 #include <xml.h>
 #include <socket.h>
+#include <msg_queue.h>
 #include <message_manager.h>
 
 int main (int argc, char **argv) {
 	// Deklaration
 	int socketFD, response;
+	unsigned int * seqSpat;
 	char ** msgId;
 	MYSQL * con;
 	xmlDocPtr message;
 	intersectGeo ** geoTable;
 	// Initialsierung
 	con		 = sqlConnect("safari");
+	seqSpat	 = setSeqSMS(SEQ_SPAT);
 	geoTable = getGeoTable(con);
 	socketFD = getClientUDS();
 	// Nachrichtenverarbeitung bis Simulator "quit" schickt oder abendiert
@@ -45,6 +48,7 @@ int main (int argc, char **argv) {
 						break;
 			case 19:	switch (processSPAT(message, geoTable)) {
 							case 0: fprintf(stdout, "SPaT-Nachricht erfolgreich verarbeitet\n");
+									*seqSpat = 123;
 									break;
 							case 1:	fprintf(stderr, "Error: SPaT-Nachricht ohne IntersectionState-Knoten!\n");
 									break;
