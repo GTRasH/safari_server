@@ -2,6 +2,7 @@
 #include <socket.h>
 #include <xml.h>
 #include <sql.h>
+#include <msq.h>
 
 #define MAX_HASH 100
 
@@ -12,6 +13,16 @@ typedef struct intersectGeo {
 	int timestamp;
 	char * xml;
 } intersectGeo;
+
+typedef struct {
+	long prio;
+	char message[MSQ_LEN];
+} msqElement;
+
+typedef struct msqList {
+	int id;
+	struct msqList *next;
+} msqList;
 
 /** \brief	Empfang von Nachrichten aus dem SIM_SOCK und Deserialisierung
  * 
@@ -41,7 +52,7 @@ int processMAP(xmlDocPtr message, MYSQL *con, intersectGeo ** mapTable);
  * 
  * \return	xmlDocPtr auf xmlDoc einer Nachricht
  */
-int processSPAT(xmlDocPtr message, intersectGeo ** mapTable);
+int processSPAT(xmlDocPtr message, intersectGeo ** mapTable, msqList * clients);
 
 /** \brief	Berechnet aus der Regulator- und IntersectionID (jeweils 16 Bit)
  * 			die 32 Bit IntersectionReferenceID zur Verwendung als Hash-Schlüssel
@@ -124,3 +135,8 @@ int getHash(uint32_t refID);
  * \return	void
  */
 void freeGeoTable(intersectGeo ** hashTable);
+
+
+msqList * msqListAdd(int i, msqList * clients);
+
+msqList * msqListRemove(int i, msqList * clients);

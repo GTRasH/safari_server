@@ -52,23 +52,42 @@ int processMAP(xmlDocPtr message, MYSQL *con, intersectGeo ** mapTable) {
 	return 0;
 }
 
-int processSPAT(xmlDocPtr message, intersectGeo ** mapTable) {
+int processSPAT(xmlDocPtr message, intersectGeo ** mapTable, msqList * clients) {
+	int res;
 	xmlDocPtr ptrSPAT, ptrMAP;
 	uint32_t refID;
 	char ** state, ** refPoint;
+	
+	msqList * clientPtr;
+	msqElement s2c;
 
 	if ((state = getTree(message, "//IntersectionState")) == NULL)
 		return 1;
 	state = getWellFormedXML(state);
 	for (int i = 0; *(state+i); ++i) {
+		clientPtr = clients;
+		// Schleifenabbruch wenn keine registrierten Clients
+		if (clientPtr == NULL)
+			break;
 		ptrSPAT		= xmlReadMemory(*(state+i), strlen(*(state+i)), NULL, NULL, 0);
 		refID		= getReferenceID(ptrSPAT);
 		// Existiert keine MAP-Information, wird die SPaT-Nachricht übersprungen
 		if ((ptrMAP = getGeoElement(mapTable, refID)) == NULL)
 			continue;
-		
 		refPoint	= getTree(ptrMAP, "//refPoint");
-		printf("%s\n", *(refPoint));
+		
+		while (clientPtr != NULL) {
+			sprintf(s2c.message, "%s", *refPoint);
+			res = msgsnd(clientPtr->id, &s2c, MSQ_LEN, 0);
+      
+			if (res < 0)
+				printf ("Konnte Nachricht an Client MQ %d nicht zustellen\n",
+						clientPtr->id);
+			else
+				printf("Nachricht an Client MQ %d zugestellt\n", clientPtr->id);
+			  
+			clientPtr = clientPtr->next;
+		}
 	}
 	
 	freeArray(state);
@@ -230,4 +249,50 @@ void freeGeoTable(intersectGeo ** table) {
 		}
 		free(table[i]);
 	}
+}
+
+msqList * msqListAdd(int i, msqList * clients) {
+   msqList * ptr;
+   if(clients == NULL) {
+		clients = malloc(sizeof( msqList ));
+		if (clients == NULL )
+			exit(EXIT_FAILURE);
+		clients->id = i;
+		clients->next = NULL;
+   }
+   else
+   {
+		ptr = clients;
+		while (ptr->next != NULL)
+			ptr=ptr->next;
+		ptr->next = malloc(sizeof( msqList ));
+		ptr = ptr->next;
+		ptr->id = i;
+		ptr->next = NULL;
+   }
+   return clients;
+}
+
+msqList * msqListRemove(int i, msqList * clients) {
+	msqList * ptr_tmp;
+	msqList * ptr;
+	if(clients == NULL)
+		return NULL;
+	if( clients->id == i ) {
+		ptr = clients->next;
+		free(clients);
+		clients = ptr;
+		return clients;
+	}
+	ptr = clients;
+	while(ptr->next != NULL) {
+		ptr_tmp = ptr->next;
+		if( ptr_tmp->id == i ) {
+			ptr->next = ptr_tmp->next;
+			free(ptr_tmp);
+			break;
+		}
+		ptr=ptr_tmp;
+	}
+	return clients;
 }

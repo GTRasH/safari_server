@@ -11,18 +11,26 @@
 #include <socket.h>
 #include <xml.h>
 #include <sql.h>
-#include <msg_queue.h>
+#include <msq.h>
 #include <client_manager.h>
+
+typedef struct {
+	long prio;
+	char message[MSQ_LEN];
+} msqElement;
 
 int main(void) {
 //	int (*func) (char *, clientStruct *);
 
-	unsigned int * seqSMS;
+	int clientID, serverID, res;
+
 	socket_t sockServer, sockClient;
 	clientStruct * client;
 	sockServer = getSocket(AF_INET, SOCK_STREAM, 0);
 	setSocketBind(&sockServer, INADDR_ANY, PORT);
 	setSocketListen(&sockServer);
+	
+	msqElement c2s, s2c;
 	
 	mySignal(SIGCHLD, SIG_IGN);
 	
@@ -45,11 +53,42 @@ int main(void) {
 					printf(	"SAFARI-Dienst für User %s gestartet!\n"
 							"Client Position latitude = %i | longitude = %i\n"
 							, client->name, client->pos.latitude, client->pos.longitude);
-							
-					seqSMS = getSeqSMS(SEQ_SPAT);
-					printf("Seqnum = %ui\n", *seqSMS);
-				}
 
+					serverID = msgget(KEY, 0);
+					if (serverID < 0)
+						printf("Error while msgget(server-queue)\n");
+					else
+						printf("msgget(server-queue) OK\n");
+					
+					clientID = msgget(IPC_PRIVATE, PERM | IPC_CREAT);
+					if (clientID < 0)
+						printf("Error while msgget(client-queue)\n");
+					else
+						printf("msgget(client-queue) OK\n");
+					
+					c2s.prio = 2;
+					
+					sprintf (c2s.message, "%d", clientID);
+					
+					res = msgsnd (serverID, &c2s, MSQ_LEN, 0);
+					
+					if (res == -1)
+						printf("Error while sending message\n");
+					else
+						printf("sending message queue registration OK\n");
+					
+					while (1) {
+						res = msgrcv(clientID, &s2c, MSQ_LEN, 0, IPC_NOWAIT);
+						if (res != -1)
+							setSocketContent(sockClient, s2c.message, strlen(s2c.message));
+						
+						usleep(10000);
+					}
+					// Deregistrierung senden
+					c2s.prio = 1;
+					sprintf (c2s.message, "%d", clientID);
+					msgsnd (serverID, &c2s, MSQ_LEN, 0);
+				}
 				printf("Client Socket %d beendet\r\n", sockClient);
 				fflush(stdout);
 				close(sockClient);

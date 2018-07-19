@@ -13,7 +13,7 @@ int main (void) {
 	char * fileAuthOK  = getFileContent(RESP_AUTH2);
 	char * fileLoc	= getFileContent(RESP_LOC);
 	char * fileServ	= getFileContent(RESP_SERV);
-	char * respAuth, * respServ, * respLoc;
+	char * respAuth, * respServ, * respLoc, *respMSQ;
 	long unsigned	fileSizeAuthOK	= strlen(fileAuthOK),
 					fileSizeServ	= strlen(fileServ),
 					fileSizeLoc		= strlen(fileLoc);
@@ -24,24 +24,27 @@ int main (void) {
 	
 	
 	respAuth = getSocketContent(sock);	// Auth Request
-	printf("strlen(message) %lu\n%s", strlen(respAuth), respAuth);
+//	printf("strlen(message) %lu\n%s", strlen(respAuth), respAuth);
 	free(respAuth);	
 	setSocketContent(sock, fileAuthOK, fileSizeAuthOK);	// Auth Response
 	
 	
 	
 	respServ = getSocketContent(sock);	// Serv Request
-	printf("strlen(message) %lu\n%s", strlen(respServ), respServ);
+//	printf("strlen(message) %lu\n%s", strlen(respServ), respServ);
 	free(respServ);	
 	setSocketContent(sock, fileServ, fileSizeServ);	// Serv Response	
 	
 	
 	
 	respLoc = getSocketContent(sock);	// Loc Request
-	printf("strlen(message) %lu\n%s", strlen(respLoc), respLoc);
+//	printf("strlen(message) %lu\n%s", strlen(respLoc), respLoc);
 	free(respLoc);	
 	setSocketContent(sock, fileLoc, fileSizeLoc);	// Loc Response
 	
+	respMSQ = getSocketContent(sock);	// Loc Request
+	printf("strlen(message) %lu\n%s", strlen(respMSQ), respMSQ);
+	free(respMSQ);
 	
 	free(fileAuthOK);
 	free(fileServ);
