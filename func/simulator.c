@@ -33,7 +33,7 @@ xmlListHead *getxmlptrlist(char *pathname) {
 	return head;
 }
 
-void sendMessage(int msgSocket, xmlDocPtr doc) {
+int sendMessage(int msgSocket, xmlDocPtr doc) {
 	int bufferSize, sentBytes;
 	xmlChar *xmlBuffer;
 	
@@ -46,8 +46,5 @@ void sendMessage(int msgSocket, xmlDocPtr doc) {
 	xmlBuffer[bufferSize] = '\0';
 	sentBytes = send(msgSocket, xmlBuffer, bufferSize, 0);
 	free(xmlBuffer);
-	if (sentBytes != bufferSize)
-		setError("Nachricht unvollständig gesendet\n", 0);
-	else
-		fprintf(stdout, "Nachricht versendet!\n");
+	return (sentBytes != bufferSize) ? 0 : 1;
 }

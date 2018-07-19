@@ -66,9 +66,10 @@ int processSPAT(xmlDocPtr message, intersectGeo ** mapTable, msqList * clients) 
 	state = getWellFormedXML(state);
 	for (int i = 0; *(state+i); ++i) {
 		clientPtr = clients;
-		// Schleifenabbruch wenn keine registrierten Clients
+		// Schleifenabbruch wenn keine Clients registriert sind
 		if (clientPtr == NULL)
 			break;
+
 		ptrSPAT		= xmlReadMemory(*(state+i), strlen(*(state+i)), NULL, NULL, 0);
 		refID		= getReferenceID(ptrSPAT);
 		// Existiert keine MAP-Information, wird die SPaT-Nachricht übersprungen
@@ -76,8 +77,11 @@ int processSPAT(xmlDocPtr message, intersectGeo ** mapTable, msqList * clients) 
 			continue;
 		refPoint	= getTree(ptrMAP, "//refPoint");
 		
+		s2c.prio	= 2;
+		sprintf(s2c.message, "%s", *refPoint);
+		
 		while (clientPtr != NULL) {
-			sprintf(s2c.message, "%s", *refPoint);
+			
 			res = msgsnd(clientPtr->id, &s2c, MSQ_LEN, 0);
       
 			if (res < 0)

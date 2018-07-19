@@ -29,23 +29,25 @@ int main (void) {
 	setSocketContent(sock, fileAuthOK, fileSizeAuthOK);	// Auth Response
 	
 	
-	
 	respServ = getSocketContent(sock);	// Serv Request
+	printf("\n# # #   Service-Antwort gesendet   # # #\n");
 //	printf("strlen(message) %lu\n%s", strlen(respServ), respServ);
 	free(respServ);	
 	setSocketContent(sock, fileServ, fileSizeServ);	// Serv Response	
-	
-	
+
 	
 	respLoc = getSocketContent(sock);	// Loc Request
 //	printf("strlen(message) %lu\n%s", strlen(respLoc), respLoc);
-	free(respLoc);	
 	setSocketContent(sock, fileLoc, fileSizeLoc);	// Loc Response
 	
-	respMSQ = getSocketContent(sock);	// Loc Request
-	printf("strlen(message) %lu\n%s", strlen(respMSQ), respMSQ);
-	free(respMSQ);
+	for (int i = 0; i < 10; i++) {
+		respMSQ = getSocketContent(sock);	// Loc Request
+		printf("\n# # #   Nachricht von SAFARI   # # #\n%s\n", respMSQ);
+		free(respMSQ);
+		setSocketContent(sock, fileLoc, fileSizeLoc);
+	}
 	
+	free(respLoc);
 	free(fileAuthOK);
 	free(fileServ);
 	free(fileLoc);

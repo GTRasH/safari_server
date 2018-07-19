@@ -30,7 +30,7 @@ int setClientInit(int sock, clientStruct * client) {
 	if (reqAuth == NULL)
 		printf("Error while getting REQ-AUTH (%s) Content\n", REQ_AUTH);
 	else {
-		printf("Sende reqAuth\n%s", reqAuth);
+		printf("\n# # #   Sende Authentifizierungs-Anforderung   # # #\n%s", reqAuth);
 		// Sonst: Sende Authentifizierungs-Anforderung
 		func = setClientAuth;
 		if (getClientResponse(sock, 10, func, reqAuth, client))
@@ -41,7 +41,7 @@ int setClientInit(int sock, clientStruct * client) {
 			if (reqServ == NULL)
 				printf("Error while getting REQ-SERV (%s) Content\n", REQ_SERV);
 			else {
-				printf("Sende reqServ\n%s", reqServ);
+				printf("\n# # #   Sende Service-Anforderung   # # #\n%s", reqServ);
 				func = setClientServices;
 				if (getClientResponse(sock, 10, func, reqServ, client))
 					printf("Client fordert keine Services an -> Abbruch\n");
@@ -51,8 +51,8 @@ int setClientInit(int sock, clientStruct * client) {
 					if (reqLoc == NULL)
 						printf("Error while getting REQ-LOC (%s) Content\n", REQ_LOC);
 					else {
-						printf("Sende reqLoc\n%s", reqLoc);
 						// Sonst: Sende Lokalisierungs-Anforderung
+						printf("\n# # #   Sende Standort-Anforderung   # # #\n%s", reqLoc);
 						func = setClientLocation;
 						if (getClientResponse(sock, 10, func, reqLoc, client))
 							printf("Client sendet keine Positionsdaten -> Abbruch\n");
@@ -89,12 +89,31 @@ int getClientResponse(	int sock, int retries,
 				result = 1;
 				break;
 			}
-			printf("%s", resp);
+			// printf("%s", resp);
+			printf("Noch %i Versuche...\n", retries);			
 			result	= func(resp, client);
 			free(resp);
 		} while (result && --retries);
 	}
 	return result;
+}
+
+int setClientResponse(char * msg, clientStruct * client) {
+	char ** test;
+	xmlDocPtr xmlMsg = xmlReadMemory(msg, strlen(msg), NULL, NULL, 0);
+	test = getNodeValue(xmlMsg, "//refPoint/long");
+	if (test != NULL) {
+		freeArray(test);
+		return setClientLocation(msg, client);
+	}
+	freeArray(test);
+	test = getNodeValue(xmlMsg, "//service");
+	if (test != NULL) {
+		freeArray(test);
+		return setClientServices(msg, client);
+	}
+	freeArray(test);
+	return 1;
 }
 
 int setClientLocation(char * msg, clientStruct * client) {

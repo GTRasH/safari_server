@@ -20,7 +20,7 @@ typedef struct {
 } msqElement;
 
 int main(void) {
-//	int (*func) (char *, clientStruct *);
+	int (*func) (char *, clientStruct *);
 
 	int clientID, serverID, res;
 
@@ -33,7 +33,7 @@ int main(void) {
 	msqElement c2s, s2c;
 	
 	mySignal(SIGCHLD, SIG_IGN);
-	
+
 	while (1) {
 		int pid;
 		
@@ -54,17 +54,19 @@ int main(void) {
 							"Client Position latitude = %i | longitude = %i\n"
 							, client->name, client->pos.latitude, client->pos.longitude);
 
+					printf("Getting server-message-queue... ");
 					serverID = msgget(KEY, 0);
 					if (serverID < 0)
-						printf("Error while msgget(server-queue)\n");
+						printf("Failed\n");
 					else
-						printf("msgget(server-queue) OK\n");
+						printf("Done\n");
 					
+					printf("Getting client-message-queue... ");
 					clientID = msgget(IPC_PRIVATE, PERM | IPC_CREAT);
 					if (clientID < 0)
-						printf("Error while msgget(client-queue)\n");
+						printf("Failed\n");
 					else
-						printf("msgget(client-queue) OK\n");
+						printf("Done\n");
 					
 					c2s.prio = 2;
 					
@@ -72,16 +74,23 @@ int main(void) {
 					
 					res = msgsnd (serverID, &c2s, MSQ_LEN, 0);
 					
+					printf("Sending message queue registration... ");
 					if (res == -1)
-						printf("Error while sending message\n");
+						printf("Failed\n");
 					else
-						printf("sending message queue registration OK\n");
+						printf("Done\n");
 					
-					while (1) {
+					func = setClientResponse;
+					
+					while (end) {
 						res = msgrcv(clientID, &s2c, MSQ_LEN, 0, IPC_NOWAIT);
-						if (res != -1)
-							setSocketContent(sockClient, s2c.message, strlen(s2c.message));
-						
+						if (res != -1) {
+							
+							if (getClientResponse(sockClient, 10, func, s2c.message, client)) {
+								printf("Client hat nicht mit Standort oder Services geantwortet\n");
+								break;
+							}
+						}
 						usleep(10000);
 					}
 					// Deregistrierung senden

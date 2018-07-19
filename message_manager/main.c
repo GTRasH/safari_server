@@ -40,22 +40,24 @@ int main (int argc, char **argv) {
 			// Deregistrierung
 			if (c2s.prio == 1 )
 			{
-				printf("Löschanforderung empfangen\n");
+				printf("Löschanforderung für die SPaT-Message-Queue empfangen\n");
 				sscanf(c2s.message,"%d",&clientID);
 				clients = msqListRemove(clientID, clients);
 			}
 			// Registrierung für SPaT
 			else if (c2s.prio == 2)
 			{
-				printf("Registrierungsanforderung empfangen\n");
+				printf("Registrierungsanforderung für SPaT-Message-Queue empfangen\n");
 				sscanf(c2s.message,"%d",&clientID);
 				clients = msqListAdd(clientID, clients);
 			}
-			
-			clientsPtr = clients;
-			while (clientsPtr != NULL) {
-				printf("clients->id = %i\n", clientsPtr->id);
-				clientsPtr = clientsPtr->next;
+			if (clients != NULL) {
+				printf("Client_Manager-Kinder auf der SPaT-Message-Queue\n");
+				clientsPtr = clients;
+				while (clientsPtr != NULL) {
+					printf("client-msq-id = %i\n", clientsPtr->id);
+					clientsPtr = clientsPtr->next;
+				}
 			}
 		}
 		
@@ -72,7 +74,7 @@ int main (int argc, char **argv) {
 		// messageId auswerten und weitere Verarbeitung triggern
 		switch ((int)strtol(msgId[0], NULL, 10)) {
 			case 18:	switch (processMAP(message, con, geoTable)) {
-							case 0: fprintf(stdout, "MAP-Nachricht erfolgreich verarbeitet\n");
+							case 0: fprintf(stdout, "MAP-Nachricht verarbeitet\n");
 									break;
 							case 1:	fprintf(stderr, "Error: MAP-Nachricht ohne IntersectionGeometry-Knoten!\n");
 									break;
@@ -80,7 +82,7 @@ int main (int argc, char **argv) {
 						}
 						break;
 			case 19:	switch (processSPAT(message, geoTable, clients)) {
-							case 0: fprintf(stdout, "SPaT-Nachricht erfolgreich verarbeitet\n");
+							case 0: fprintf(stdout, "SPaT-Nachricht verarbeitet\n");
 									break;
 							case 1:	fprintf(stderr, "Error: SPaT-Nachricht ohne IntersectionState-Knoten!\n");
 									break;

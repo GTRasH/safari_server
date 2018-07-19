@@ -29,6 +29,6 @@ typedef struct {
  */
 xmlListHead *getxmlptrlist(char *pathname);
 
-void sendMessage(int msgSocket, xmlDocPtr doc);
+int sendMessage(int msgSocket, xmlDocPtr doc);
 
 int getMinuteOfTheYear(void);

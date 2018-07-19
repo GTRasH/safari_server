@@ -52,6 +52,7 @@ int getClientResponse(	int sock, int retries,
 /** \brief User-Daten aus einer Nachricht extrahieren und gegen DB prüfen
  * 
  * \param[in]	clientSock	Socket des jeweiligen Client-Prozesses
+ * \param[in]	msg			Zu verarbeitende Nachricht
  * 
  * \return	> 0 wenn NOK, 0 sonst
  */
@@ -60,6 +61,7 @@ int setClientAuth(char * msg, clientStruct * client);
 /** \brief Lokations-Daten aus einer Nachricht extrahieren und in der User-Struktur speichern
  * 
  * \param[in]	clientSock	Socket des jeweiligen Client-Prozesses
+ * \param[in]	msg			Zu verarbeitende Nachricht
  * 
  * \return	> 0 wenn NOK, 0 sonst
  */
@@ -68,7 +70,18 @@ int setClientLocation(char * msg, clientStruct * client);
 /** \brief Services aus einer Nachricht extrahieren und in der User-Struktur speichern
  * 
  * \param[in]	clientSock	Socket des jeweiligen Client-Prozesses
+ * \param[in]	msg			Zu verarbeitende Nachricht
  * 
  * \return	> 0 wenn NOK, 0 sonst
  */
 int setClientServices(char * msg, clientStruct * client);
+
+/** \brief 	Erkennt eine Client-Antwort als Lokations- oder Service-Response
+ * 			und ruft die jeweilige Funktion auf
+ * 
+ * \param[in]	clientSock	Socket des jeweiligen Client-Prozesses
+ * \param[in]	msg			Zu verarbeitende Nachricht
+ * 
+ * \return	> 0 wenn NOK, 0 sonst
+ */
+int setClientResponse(char * msg, clientStruct * client);
