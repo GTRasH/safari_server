@@ -90,7 +90,6 @@ int getClientResponse(	int sock, int retries,
 				break;
 			}
 			// printf("%s", resp);
-			printf("Noch %i Versuche...\n", retries);			
 			result	= func(resp, client);
 			free(resp);
 		} while (result && --retries);

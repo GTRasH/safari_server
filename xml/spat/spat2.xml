@@ -8,49 +8,49 @@
       <!--Optional:-->
       <name>string</name>
       <intersections>
-		  <IntersectionState>
+		<IntersectionState>
           <!--Optional:-->
-          <name>Intersection 1</name>
+          <name>Intersection 2</name>
           <id>
             <!--Optional:-->
             <region>1</region>
-            <id>1</id>
+            <id>2</id>
           </id>
           <revision>6</revision>
           <status>
             <!--Optional:-->
-            <manualControlIsEnabled/>
+            <manualControlIsEnabled></manualControlIsEnabled>
             <!--Optional:-->
-            <stopTimeIsActivated/>
+            <stopTimeIsActivated></stopTimeIsActivated>
             <!--Optional:-->
-            <failureFlash/>
+            <failureFlash></failureFlash>
             <!--Optional:-->
-            <preemptIsActive/>
+            <preemptIsActive></preemptIsActive>
             <!--Optional:-->
-            <signalPriorityIsActive/>
+            <signalPriorityIsActive></signalPriorityIsActive>
             <!--Optional:-->
-            <fixedTimeOperation/>
+            <fixedTimeOperation></fixedTimeOperation>
             <!--Optional:-->
-            <trafficDependentOperation/>
+            <trafficDependentOperation></trafficDependentOperation>
             <!--Optional:-->
-            <standbyOperation/>
+            <standbyOperation></standbyOperation>
             <!--Optional:-->
-            <failureMode/>
+            <failureMode></failureMode>
             <!--Optional:-->
-            <off/>
+            <off></off>
             <!--Optional:-->
-            <recentMAPmessageUpdate/>
+            <recentMAPmessageUpdate></recentMAPmessageUpdate>
             <!--Optional:-->
-            <recentChangeInMAPassignedLanesIDsUsed/>
+            <recentChangeInMAPassignedLanesIDsUsed></recentChangeInMAPassignedLanesIDsUsed>
             <!--Optional:-->
-            <noValidMAPisAvailableAtThisTime/>
+            <noValidMAPisAvailableAtThisTime></noValidMAPisAvailableAtThisTime>
             <!--Optional:-->
-            <noValidSPATisAvailableAtThisTime/>
+            <noValidSPATisAvailableAtThisTime></noValidSPATisAvailableAtThisTime>
           </status>
           <!--Optional:-->
-          <moy>0</moy>
+          <moy>7</moy>
           <!--Optional:-->
-          <timeStamp>0</timeStamp>
+          <timeStamp>5</timeStamp>
           <!--Optional:-->
           <enabledLanes>
             <LaneID>6</LaneID>
@@ -64,16 +64,16 @@
                 <MovementEvent>
                   <eventState>
                     <!--You have a CHOICE of the next 10 items at this level-->
-                    <unavailable/>
-                    <dark/>
-                    <stop-Then-Proceed/>
-                    <stop-And-Remain/>
-                    <pre-Movement/>
-                    <permissive-Movement-Allowed/>
-                    <protected-Movement-Allowed/>
-                    <permissive-clearance/>
-                    <protected-clearance/>
-                    <caution-Conflicting-Traffic/>
+                    <unavailable></unavailable>
+                    <dark></dark>
+                    <stop-Then-Proceed></stop-Then-Proceed>
+                    <stop-And-Remain></stop-And-Remain>
+                    <pre-Movement></pre-Movement>
+                    <permissive-Movement-Allowed></permissive-Movement-Allowed>
+                    <protected-Movement-Allowed></protected-Movement-Allowed>
+                    <permissive-clearance></permissive-clearance>
+                    <protected-clearance></protected-clearance>
+                    <caution-Conflicting-Traffic></caution-Conflicting-Traffic>
                   </eventState>
                   <!--Optional:-->
                   <timing>
@@ -93,11 +93,11 @@
                   <speeds>
                     <AdvisorySpeed>
                       <type>
-                        <greenwave></greenwave>
+                        <ecoDrive></ecoDrive>
                       </type>
-                      <speed>10</speed>
+                      <speed>5</speed>
                       <confidence>
-                        <prec1ms></prec1ms>
+                        <prec5ms></prec5ms>
                       </confidence>
                     </AdvisorySpeed>
                   </speeds>
@@ -114,14 +114,14 @@
                   <!--Optional:-->
                   <waitOnStop>
                     <!--You have a CHOICE of the next 2 items at this level-->
-                    <true/>
-                    <false/>
+                    <true></true>
+                    <false></false>
                   </waitOnStop>
                   <!--Optional:-->
                   <pedBicycleDetect>
                     <!--You have a CHOICE of the next 2 items at this level-->
-                    <true/>
-                    <false/>
+                    <true></true>
+                    <false></false>
                   </pedBicycleDetect>
                 </ConnectionManeuverAssist>
               </maneuverAssistList>

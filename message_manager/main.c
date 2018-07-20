@@ -17,7 +17,7 @@
 
 int main (int argc, char **argv) {
 	// Deklaration
-	int socketFD, serverID, clientID, response;
+	int socketFD, serverID, clientID, response, DSRCid;
 	msqElement c2s;
 	char ** msgId;
 	MYSQL * con;
@@ -69,10 +69,10 @@ int main (int argc, char **argv) {
 					"Sendeschema (... -> Nachrichtengröße -> Nachricht -> ...) nicht eingehalten\n", 1);
 		}
 		
-		
+		DSRCid = (int)strtol(msgId[0], NULL, 10);
 		
 		// messageId auswerten und weitere Verarbeitung triggern
-		switch ((int)strtol(msgId[0], NULL, 10)) {
+		switch (DSRCid) {
 			case 18:	switch (processMAP(message, con, geoTable)) {
 							case 0: fprintf(stdout, "MAP-Nachricht verarbeitet\n");
 									break;
@@ -92,6 +92,7 @@ int main (int argc, char **argv) {
 			default:	xmlFreeDoc(message);
 						fprintf(stderr,"Error: Nachricht mit unbekannter DSRCmsgID erhalten");
 		}
+		
 		xmlFreeDoc(message);
 		freeArray(msgId);
 		

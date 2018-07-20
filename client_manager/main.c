@@ -82,7 +82,7 @@ int main(void) {
 					
 					func = setClientResponse;
 					
-					while (end) {
+					while (1) {
 						res = msgrcv(clientID, &s2c, MSQ_LEN, 0, IPC_NOWAIT);
 						if (res != -1) {
 							

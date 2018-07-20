@@ -26,29 +26,32 @@ xmlDocPtr getMessage(int createSocket, int *response) {
 int processMAP(xmlDocPtr message, MYSQL *con, intersectGeo ** mapTable) {
 	xmlDocPtr xmlPtr;
 	uint32_t refID, xmlLen;
-	char * query, ** geometry;
+	char * query, ** geoTree, ** geoXML;
 	// Jedes Element von geometry ist ein gültiger XML-String
-	if ((geometry = getTree(message, "//IntersectionGeometry")) == NULL)
+	if ((geoTree = getTree(message, "//IntersectionGeometry")) == NULL)
 		return 1;
 	
-	geometry = getWellFormedXML(geometry);
-	for (int i = 0; *(geometry+i); ++i) {
-		xmlLen	= strlen(*(geometry+i));
-		xmlPtr	= xmlReadMemory(*(geometry+i), xmlLen, NULL, NULL, 0);
+	geoXML = getWellFormedXML(geoTree);
+	
+	freeArray(geoTree);
+	
+	for (int i = 0; *(geoXML+i); ++i) {
+		xmlLen	= strlen(*(geoXML+i));
+		xmlPtr	= xmlReadMemory(*(geoXML+i), xmlLen, NULL, NULL, 0);
 		refID	= getReferenceID(xmlPtr);
 		query	= calloc((2*xmlLen + MSG_BUF), sizeof(char));
 		// Aktualisierung der DB
 		sprintf(query,	"INSERT INTO map "
 						"VALUES ('%i', '%s', '%i') "
 						"ON DUPLICATE KEY UPDATE xml = '%s', timestamp='%i'"
-						, refID, *(geometry+i), 0, *(geometry+i), 0);
+						, refID, *(geoXML+i), 0, *(geoXML+i), 0);
 		if (mysql_query(con, query))
 			sqlError(con);
 		free(query);
 		// Aktualisierung der MAP-Table
-		setGeoElement(mapTable, refID, "0", *(geometry+i));
+		setGeoElement(mapTable, refID, "0", *(geoXML+i));
 	}
-	freeArray(geometry);
+	freeArray(geoXML);
 	return 0;
 }
 
@@ -63,7 +66,9 @@ int processSPAT(xmlDocPtr message, intersectGeo ** mapTable, msqList * clients) 
 
 	if ((state = getTree(message, "//IntersectionState")) == NULL)
 		return 1;
+		
 	state = getWellFormedXML(state);
+	
 	for (int i = 0; *(state+i); ++i) {
 		clientPtr = clients;
 		// Schleifenabbruch wenn keine Clients registriert sind
@@ -75,7 +80,8 @@ int processSPAT(xmlDocPtr message, intersectGeo ** mapTable, msqList * clients) 
 		// Existiert keine MAP-Information, wird die SPaT-Nachricht übersprungen
 		if ((ptrMAP = getGeoElement(mapTable, refID)) == NULL)
 			continue;
-		refPoint	= getTree(ptrMAP, "//refPoint");
+			
+		refPoint	= getTree(ptrSPAT, "//AdvisorySpeed");
 		
 		s2c.prio	= 2;
 		sprintf(s2c.message, "%s", *refPoint);
@@ -125,6 +131,7 @@ char ** getTree(xmlDocPtr message, char * tag) {
 	nodes	= getNodes(message, tag)->nodesetval;
 	if ((countNodes = (nodes) ? nodes->nodeNr : 0) == 0)
 		return NULL;
+
 	// erstellt für jeden gefundenen Tag einen XML-Doc-String
 	array = calloc(countNodes+1, sizeof(char*));
 	for (int i = 0; i < countNodes; ++i) {
@@ -225,20 +232,22 @@ int getHash(uint32_t refID) {
 
 char ** getWellFormedXML(char ** trees) {
 	size_t xmlLength;
-	char * xmlString;
 	const char * xmlTag		= "<?xml version=\"1.0\"?>\n";
 	const size_t xmlTagLen	= (int)strlen(xmlTag);
-	for (int i = 0; trees[i]; i++) {
+	int count;
+	
+	for (count = 0; trees[count]; count++);
+	
+	char ** ret = calloc(count+1, sizeof(char *));
+	
+	for (int i = 0; i < count; i++) {
 		xmlLength	= strlen(trees[i]);
-		xmlString	= malloc(xmlLength);
-		xmlString	= strcpy(xmlString, trees[i]);
-		free(trees[i]);
-		trees[i]	= calloc((xmlLength + xmlTagLen + 1), sizeof(char));
-		strcpy(trees[i], xmlTag);
-		strcat(trees[i], xmlString);
-		free(xmlString);
+		ret[i]		= calloc(xmlLength+xmlTagLen+1, sizeof(char));
+		strcpy(ret[i], xmlTag);
+		strcat(ret[i], trees[i]);
 	}
-	return trees;
+	ret[count] = NULL;
+	return ret;
 }
 
 void freeGeoTable(intersectGeo ** table) {
