@@ -17,62 +17,58 @@
 
 int main (int argc, char **argv) {
 	// Deklaration
-	int socketFD, serverID, clientID, response, DSRCid;
+	int socketFD, serverID, clientID;
 	msqElement c2s;
 	char ** msgId;
 	MYSQL * con;
 	xmlDocPtr message;
+	msqList * clients;
 	intersectGeo ** geoTable;
 	// Initialsierung
+	clients	 = NULL;
 	con		 = sqlConnect("safari");	// DB-Connect
 	geoTable = getGeoTable(con);		// IntersectionGeometry-HashTable
-	socketFD = getClientUDS();
 	
-	msqList * clients = NULL;
-	msqList * clientsPtr;
+	if ((socketFD = getClientUDS()) == -1) {
+		printf("Fehler beim Verbindungsaufbau zum Simulator!\n");
+		return EXIT_FAILURE;
+	}
 	
 	serverID = msgget(KEY, PERM  | IPC_CREAT);	// Message Queue Client-Reg
 	
 	// Nachrichtenverarbeitung bis Simulator "quit" schickt oder abendiert
-	do {
+	while (1) {
 		// Message-Queue-Registrierungen abarbeiten
 		while (msgrcv(serverID, &c2s, MSQ_LEN, 0, IPC_NOWAIT) != -1) {
 			// Deregistrierung
 			if (c2s.prio == 1 )
 			{
-				printf("Löschanforderung für die SPaT-Message-Queue empfangen\n");
 				sscanf(c2s.message,"%d",&clientID);
 				clients = msqListRemove(clientID, clients);
 			}
 			// Registrierung für SPaT
 			else if (c2s.prio == 2)
 			{
-				printf("Registrierungsanforderung für SPaT-Message-Queue empfangen\n");
 				sscanf(c2s.message,"%d",&clientID);
 				clients = msqListAdd(clientID, clients);
 			}
-			if (clients != NULL) {
-				printf("Client_Manager-Kinder auf der SPaT-Message-Queue\n");
-				clientsPtr = clients;
-				while (clientsPtr != NULL) {
-					printf("client-msq-id = %i\n", clientsPtr->id);
-					clientsPtr = clientsPtr->next;
-				}
-			}
 		}
 		
-		message	= getMessage(socketFD, &response);
-		msgId	= getNodeValue(message, "//messageId");
-		if (msgId == NULL) {
+		if ((message = getMessage(socketFD)) == NULL) {
+			printf ("Error: Message Manager beendet - "
+					"Fehler beim Empfangen einer Nachricht vom Simulator\n");
+			break;
+		}
+		
+		if ((msgId = getNodeValue(message, "//messageId")) == NULL) {
 			xmlFreeDoc(message);
-			setError("Error: Message Manager beendet\n"
-					"Sendeschema (... -> Nachrichtengröße -> Nachricht -> ...) nicht eingehalten\n", 1);
+			printf ("Error: Message Manager beendet - "
+					"Nachricht ohne DSRCid erhalten\n");
+			break;
 		}
-		
-		DSRCid = (int)strtol(msgId[0], NULL, 10);
 		
 		// messageId auswerten und weitere Verarbeitung triggern
-		switch (DSRCid) {
+		switch ((int)strtol(msgId[0], NULL, 10)) {
 			case 18:	switch (processMAP(message, con, geoTable)) {
 							case 0: fprintf(stdout, "MAP-Nachricht verarbeitet\n");
 									break;
@@ -95,9 +91,8 @@ int main (int argc, char **argv) {
 		
 		xmlFreeDoc(message);
 		freeArray(msgId);
-		
-	} while (response > 0);
-	
+	}
+
 	freeGeoTable(geoTable);
 	mysql_close(con);
 	close(socketFD);

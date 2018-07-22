@@ -7,9 +7,10 @@ void sqlError(MYSQL *con) {
 }
 
 MYSQL * sqlConnect(char * db) {
-	MYSQL *con = mysql_init(NULL);
-	if (mysql_real_connect(con, "localhost", "root", "safari", 
-			db, 0, NULL, 0) == NULL)
+	MYSQL * con = mysql_init(NULL);
+	if ( mysql_real_connect(con, "localhost", "root", "safari", 
+							db, 0, NULL, 0) == NULL)
 		sqlError(con);
+		
 	return con;
 }

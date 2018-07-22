@@ -10,9 +10,10 @@ int getClientUDS(void) {
 	address.sun_family = AF_LOCAL;
 	strcpy(address.sun_path, UDS_FILE);
 
-	if (connect(socketFD, (struct sockaddr *) &address, sizeof(address)) == 0)
-		printf("Verbindung mit dem Server hergestellt\n");
+	if (connect(socketFD, (struct sockaddr *) &address, sizeof(address)) == -1)
+		return -1;
 		
+	printf("Verbindung mit dem Server hergestellt\n");
 	return socketFD;
 }
 
@@ -131,9 +132,10 @@ char * getSocketContent(socket_t sock) {
 	bufSize = 1;
 	
 	do {
-		if ((recvBytes = recv(sock, buf, MSG_BUF, 0)) <= 0)
+		if ((recvBytes = recv(sock, buf, MSG_BUF, 0)) <= 0) {
+			free(string);
 			return NULL;
-
+		}
 		buf[recvBytes] = '\0';
 		bufSize	 += recvBytes;
 		string	  = realloc(string, sizeof(char) * bufSize);

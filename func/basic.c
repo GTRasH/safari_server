@@ -18,10 +18,11 @@ void setError(char *message, int abend) {
 }
 
 void freeArray(char ** array) {
-	int i;
-	for (i=0; *(array+i); ++i)
-		free(*(array+i));
+	int i=0;
+	while (*(array+i) != NULL)
+		free(*(array+i++));
 
+	free(*(array+i));
 	free(array);
 }
 

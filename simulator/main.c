@@ -58,10 +58,9 @@ int main (void) {
 			while (spatElement->ptr != NULL) {
 				timeStr = int2string(time(NULL));
 				setNodeValue(spatElement->ptr, "//timeStamp", timeStr);
-				if (sendMessage(msgSocket, spatElement->ptr))
-					printf("SPaT Nachricht versendet\n");
-				else
-					printf("Fehler beim Versenden einer SPaT Nachricht\n");
+				free(timeStr);
+				setMessage(msgSocket, spatElement->ptr);
+				printf("SPaT Nachricht versendet\n");
 				spatElement = spatElement->next;
 				sleep(1);
 			}
@@ -70,18 +69,16 @@ int main (void) {
 			while (mapElement->ptr != NULL) {
 				timeStr = int2string(time(NULL));
 				setNodeValue(mapElement->ptr, "//timeStamp", timeStr);
-				if (sendMessage(msgSocket, mapElement->ptr))
-					printf("MAP Nachricht versendet\n");
-				else
-					printf("Fehler beim Versenden einer MAP Nachricht\n");
+				free(timeStr);
+				setMessage(msgSocket, mapElement->ptr);
+				printf("MAP Nachricht versendet\n");
 				mapElement = mapElement->next;
 				sleep(1);
 			}
-		//	char *buffer = "quit";
-		//	send(msgSocket, buffer, MSG_BUF, 0);
-        
-		}
+		 }
 	}
+	freeList(mapHead);
+	freeList(spatHead);
  	close (uds);
 	return EXIT_SUCCESS;
 }

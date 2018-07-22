@@ -1,6 +1,6 @@
 #include <simulator.h>
 
-xmlListHead *getxmlptrlist(char *pathname) {
+xmlListHead * getxmlptrlist(char *pathname) {
 	DIR *dir;
 	struct dirent *entry;
 	char docname[256];
@@ -33,18 +33,22 @@ xmlListHead *getxmlptrlist(char *pathname) {
 	return head;
 }
 
-int sendMessage(int msgSocket, xmlDocPtr doc) {
-	int bufferSize, sentBytes;
+void freeList(xmlListHead * head) {
+	xmlListElement * ptr, * tmp;
+	ptr = head->first;
+	while (ptr != NULL) {
+		xmlFreeDoc(ptr->ptr);
+		tmp = ptr;
+		ptr = ptr->next;
+		free(tmp);
+	}
+	free(head);
+}
+
+void setMessage(int msgSocket, xmlDocPtr doc) {
+	int bufferSize;
 	xmlChar *xmlBuffer;
-	
 	xmlDocDumpMemory(doc, &xmlBuffer, &bufferSize);
-	char *size	= int2string(bufferSize);
-	
-	// Größe der Nachricht senden
-	send(msgSocket, size, MSG_BUF, 0);
-	// Nachricht senden
-	xmlBuffer[bufferSize] = '\0';
-	sentBytes = send(msgSocket, xmlBuffer, bufferSize, 0);
-	free(xmlBuffer);
-	return (sentBytes != bufferSize) ? 0 : 1;
+	setSocketContent(msgSocket, (char *) xmlBuffer, (long unsigned) bufferSize);
+	xmlFree(xmlBuffer);
 }

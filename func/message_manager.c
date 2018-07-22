@@ -1,26 +1,16 @@
 #include <message_manager.h>
 
-xmlDocPtr getMessage(int createSocket, int *response) {
-	int msgSize;
-	char *recvBuffer;
-	xmlDocPtr message;
-	// Empfang der Nachrichtengröße
-	recvBuffer = calloc(MSG_BUF, sizeof(char));
-	recv(createSocket, recvBuffer, MSG_BUF, 0);
-	msgSize = (int)strtol(recvBuffer, NULL, 10);
-	free(recvBuffer);
-	if (msgSize == 0) {	// => Keine Nachrichtengröße gesendet => Abbruch
-		*response = 0;
+xmlDocPtr getMessage(int sock) {
+	char * msgBuf = getSocketContent(sock);
+	xmlDocPtr msgXML;
+	if (msgBuf == NULL) {
+		free(msgBuf);
 		return NULL;
 	}
-	// Sonst Nachrichten-Buffer anpassen und Nachricht empfangen
-	recvBuffer	= calloc(msgSize+1, sizeof(char));
-	recv(createSocket, recvBuffer, msgSize, 0);
-	recvBuffer[msgSize] = '\0';
-	*response	= 1;
-	message = xmlReadMemory(recvBuffer, msgSize, NULL, NULL, 0);
-	free(recvBuffer);
-	return message;
+
+	msgXML = xmlReadMemory(msgBuf, strlen(msgBuf), NULL, NULL, 0);
+	free(msgBuf);
+	return msgXML;
 }
 
 int processMAP(xmlDocPtr message, MYSQL *con, intersectGeo ** mapTable) {
@@ -48,6 +38,7 @@ int processMAP(xmlDocPtr message, MYSQL *con, intersectGeo ** mapTable) {
 		if (mysql_query(con, query))
 			sqlError(con);
 		free(query);
+		xmlFreeDoc(xmlPtr);
 		// Aktualisierung der MAP-Table
 		setGeoElement(mapTable, refID, "0", *(geoXML+i));
 	}
@@ -59,23 +50,27 @@ int processSPAT(xmlDocPtr message, intersectGeo ** mapTable, msqList * clients) 
 	int res;
 	xmlDocPtr ptrSPAT, ptrMAP;
 	uint32_t refID;
-	char ** state, ** refPoint;
+	char ** stateRaw, ** stateXML, ** refPoint;
 	
 	msqList * clientPtr;
 	msqElement s2c;
 
-	if ((state = getTree(message, "//IntersectionState")) == NULL)
+	if ((stateRaw = getTree(message, "//IntersectionState")) == NULL) {
+		freeArray(stateRaw);
 		return 1;
+	}
 		
-	state = getWellFormedXML(state);
+	stateXML = getWellFormedXML(stateRaw);
+	freeArray(stateRaw);
 	
-	for (int i = 0; *(state+i); ++i) {
+	for (int i = 0; *(stateXML+i); ++i) {
 		clientPtr = clients;
 		// Schleifenabbruch wenn keine Clients registriert sind
 		if (clientPtr == NULL)
 			break;
 
-		ptrSPAT		= xmlReadMemory(*(state+i), strlen(*(state+i)), NULL, NULL, 0);
+		ptrSPAT		= xmlReadMemory(*(stateXML+i), strlen(*(stateXML+i)), 
+									NULL, NULL, 0);
 		refID		= getReferenceID(ptrSPAT);
 		// Existiert keine MAP-Information, wird die SPaT-Nachricht übersprungen
 		if ((ptrMAP = getGeoElement(mapTable, refID)) == NULL)
@@ -85,6 +80,8 @@ int processSPAT(xmlDocPtr message, intersectGeo ** mapTable, msqList * clients) 
 		
 		s2c.prio	= 2;
 		sprintf(s2c.message, "%s", *refPoint);
+		
+		freeArray(refPoint);
 		
 		while (clientPtr != NULL) {
 			
@@ -100,7 +97,7 @@ int processSPAT(xmlDocPtr message, intersectGeo ** mapTable, msqList * clients) 
 		}
 	}
 	
-	freeArray(state);
+	freeArray(stateXML);
 	
 	return 0;
 }
@@ -123,67 +120,39 @@ uint32_t getReferenceID(xmlDocPtr xmlDoc) {
 }
 
 char ** getTree(xmlDocPtr message, char * tag) {
-	xmlNodeSetPtr nodes;
+	xmlXPathObjectPtr xpathObj;
+	xmlNodeSetPtr nodeSet;
 	xmlBufferPtr xmlBuff;
 	char ** array;
 	int countNodes, dumpSize;
 	// Aufruf aller Knoten (Evaluierung mittels tag)
-	nodes	= getNodes(message, tag)->nodesetval;
-	if ((countNodes = (nodes) ? nodes->nodeNr : 0) == 0)
+	xpathObj = getNodes(message, tag);
+	nodeSet	 = xpathObj->nodesetval;
+	if ((countNodes = (nodeSet) ? nodeSet->nodeNr : 0) == 0) {
+		xmlXPathFreeNodeSet(nodeSet);
 		return NULL;
+	}
 
 	// erstellt für jeden gefundenen Tag einen XML-Doc-String
 	array = calloc(countNodes+1, sizeof(char*));
 	for (int i = 0; i < countNodes; ++i) {
 		xmlBuff	 = xmlBufferCreate();
-		dumpSize = xmlNodeDump(xmlBuff, message, nodes->nodeTab[i], 0, 0);
+		dumpSize = xmlNodeDump(xmlBuff, message, nodeSet->nodeTab[i], 0, 0);
 		array[i] = calloc((dumpSize + 1), sizeof(char));
 		array[i] = strcpy(array[i], (char *) xmlBuff->content);
 		array[i][dumpSize] = '\0';
 		xmlBufferFree(xmlBuff);
 	}
-	array[countNodes] = '\0';
+	array[countNodes] = NULL;	// Array sicher abgeschlossen
+	xmlXPathFreeObject(xpathObj);
 	return array;
-}
-
-intersectGeo ** getGeoTable(MYSQL *con) {
-	intersectGeo ** geometryTable, * geometry, * geoPtr;
-	MYSQL_RES * result;
-	MYSQL_ROW row;
-	uint32_t refID;
-	int hash;
-	// MAP Information abfragen
-	if (mysql_query(con, "SELECT referenceid, timestamp, xml FROM map"))
-		sqlError(con);
-	if ((result = mysql_store_result(con)) == NULL)
-		sqlError(con);
-	// Hash-Table initialisieren
-	geometryTable = calloc(MAX_HASH, sizeof(intersectGeo *));
-	for (int i = 0; i < MAX_HASH; i++)
-		geometryTable[i] = NULL;
-	// DB-Ergebnisse verarbeiten (Hash-Table füllen)
-	while ((row = mysql_fetch_row(result))) {
-		refID	 = (uint32_t)strtol(row[0], NULL, 10);
-		hash	 = getHash(refID);
-		geometry = getNewGeoElement(refID, row[1], row[2]);
-		// Kollisions-Abfrage
-		if (geometryTable[hash] == NULL)
-			geometryTable[hash] = geometry;
-		else {
-			geoPtr = geometryTable[hash];
-			while (geoPtr->next != NULL)
-				geoPtr = geoPtr->next;
-			geoPtr->next = geometry;
-		}
-	}
-	return geometryTable;
 }
 
 intersectGeo * getNewGeoElement(uint32_t refID, char * timestamp, char * xml) {
 	intersectGeo * geometry;
 	// intersectGeo-Element aufbauen und mit Daten füllen
 	geometry			  = malloc(sizeof(intersectGeo));
-	geometry->xml		  = calloc(strlen(xml)+1, sizeof(char));
+	geometry->xml		  = calloc(strlen(xml), sizeof(char));
 	geometry->referenceID = refID;
 	geometry->timestamp	  = (int)strtol(timestamp, NULL, 10);
 	geometry->next		  = NULL;
@@ -250,18 +219,54 @@ char ** getWellFormedXML(char ** trees) {
 	return ret;
 }
 
-void freeGeoTable(intersectGeo ** table) {
-	intersectGeo * geoPtr, * temp;
-	for (int i = 0; i < MAX_HASH; ++i) {
-		geoPtr = table[i];
-		while (geoPtr != NULL) {
-			free(geoPtr->xml);
-			temp	= geoPtr;
-			geoPtr	= geoPtr->next;
-			free(temp);
-		}
-		free(table[i]);
+intersectGeo ** getGeoTable(MYSQL *con) {
+	intersectGeo ** geometryTable, * geometry, * geoPtr;
+	MYSQL_RES * result;
+	MYSQL_ROW row;
+	uint32_t refID;
+	int hash;
+	// MAP Information abfragen
+	if (mysql_query(con, "SELECT referenceid, timestamp, xml FROM map"))
+		sqlError(con);
+	if ((result = mysql_store_result(con)) == NULL) {
+		mysql_free_result(result);
+		sqlError(con);
 	}
+	// Hash-Table initialisieren
+	geometryTable = malloc(MAX_HASH * sizeof(intersectGeo *));
+	for (int i = 0; i < MAX_HASH; i++)
+		geometryTable[i] = NULL;
+	// DB-Ergebnisse verarbeiten (Hash-Table füllen)
+	while ((row = mysql_fetch_row(result))) {
+		refID	 = (uint32_t)strtol(row[0], NULL, 10);
+		hash	 = getHash(refID);
+		geometry = getNewGeoElement(refID, row[1], row[2]);
+		// Kollisions-Abfrage
+		if (geometryTable[hash] == NULL)
+			geometryTable[hash] = geometry;
+		else {
+			geoPtr = geometryTable[hash];
+			while (geoPtr->next != NULL)
+				geoPtr = geoPtr->next;
+			geoPtr->next = geometry;
+		}
+	}
+	mysql_free_result(result);
+	return geometryTable;
+}
+
+void freeGeoTable(intersectGeo ** table) {
+	intersectGeo * ptr, * tmp;
+	for (int i = 0; i < MAX_HASH; ++i) {
+		ptr = table[i];
+		while (ptr != NULL) {
+			free(ptr->xml);	 // XML-String freigeben
+			tmp	= ptr;
+			ptr	= ptr->next;
+			free(tmp);		 // Element freigeben
+		}
+	}
+	free(table);
 }
 
 msqList * msqListAdd(int i, msqList * clients) {

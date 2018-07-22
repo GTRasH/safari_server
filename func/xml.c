@@ -5,7 +5,6 @@ int setNodeValue(xmlDocPtr doc, char * expression, char * value) {
 	xmlXPathObjectPtr xpathObject = getNodes(doc, expression);
 	if (xpathObject == NULL) {
 		xmlXPathFreeObject(xpathObject);
-		free(value);
 		return 0;
 	}
 	xmlNodeSetPtr node = xpathObject->nodesetval;
@@ -14,12 +13,11 @@ int setNodeValue(xmlDocPtr doc, char * expression, char * value) {
 		xmlNodeSetContent(node->nodeTab[i], (xmlChar *) value);
 
 	xmlXPathFreeObject(xpathObject);
-	free(value);
 	return 1;
 }
 
 char ** getNodeValue(xmlDocPtr doc, char * expression) {
-	int i, size, length;
+	int size, length;
 	char * temp;
 	char ** arr;
 	
@@ -31,38 +29,42 @@ char ** getNodeValue(xmlDocPtr doc, char * expression) {
 	xmlNodeSetPtr nodes = xpathObject->nodesetval;
 	size = (nodes) ? nodes->nodeNr : 0;
 	
-	if (size == 0)
+	if (size == 0) {
+		xmlXPathFreeObject(xpathObject);
 		return NULL;
+	}
 
 	arr = calloc(size+1, sizeof(char *));
 
-	for (i = 0; i < size; i++) {
+	for (int i = 0; i < size; i++) {
 		temp	= (char *) xmlNodeGetContent(nodes->nodeTab[i]);
 		length	= (int)strlen(temp);
 		arr[i]	= calloc(length+1, sizeof(char));
 		strcpy(arr[i], temp);
 		arr[i][length] = '\0';
+		free(temp);
 	}
-	arr[size] = '\0';
+	arr[size] = NULL;
+	xmlXPathFreeObject(xpathObject);
 	return arr;
 }
 
 xmlXPathObjectPtr getNodes(xmlDocPtr doc, char * expression) {
 	xmlXPathContextPtr xpathContext;
 	xmlXPathObjectPtr xpathObject;
-	xmlChar *xpathExpr = (xmlChar*) expression;
+	xmlChar * xpathExpr = (xmlChar*) expression;
 	// Kontext für XPath Evaluierung generieren
 	xpathContext = xmlXPathNewContext(doc);
 	if (xpathContext == NULL) {
-		xmlFreeDoc(doc);
+		xmlXPathFreeContext(xpathContext);
 		printf("Error: unable to create new XPath context\n");
 		return NULL;
 	}
 	// XPath Ausdruck evaluieren
 	xpathObject = xmlXPathEvalExpression(xpathExpr, xpathContext);
 	if (xpathObject == NULL) {
+		xmlXPathFreeObject(xpathObject);
 		xmlXPathFreeContext(xpathContext);
-		xmlFreeDoc(doc);
 		printf("Error: unable to evaluate XPath expression\n");
 		return NULL;
 	}

@@ -27,11 +27,10 @@ typedef struct msqList {
 /** \brief	Empfang von Nachrichten aus dem SIM_SOCK und Deserialisierung
  * 
  * \param[in] createSocket	Socket
- * \param[out] response		Rückgabewert zur Prozesssteuerung
  * 
  * \return	xmlDocPtr auf xmlDoc einer Nachricht
  */
-xmlDocPtr getMessage(int createSocket, int *response);
+xmlDocPtr getMessage(int sock);
 
 /** \brief	Verarbeitet MAP-Nachrichten
  * 			Aktualisiert die MAP-DB sowie die (MAP)Hash-Table
