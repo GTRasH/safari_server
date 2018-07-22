@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<safari>
+	<header>
+		<request></request>
+		<response>auth</response>
+	</header>
+	<data>
+		<user>test</user>
+		<pass>test1</pass>
+	</data>
+</safari>

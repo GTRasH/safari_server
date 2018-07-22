@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<safari>
+	<header>
+		<request></request>
+		<response>service</response>
+	</header>
+	<data>
+		<cityID>1</cityID>
+		<services>
+			<service>1</service>	<!-- GLOSA -->
+			<service>2</service>	<!-- not implemented -->
+			<service>4</service>	<!-- not implemented -->
+		</services>
+	</data>
+</safari>
