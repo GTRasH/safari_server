@@ -17,7 +17,7 @@
 
 int main (int argc, char **argv) {
 	// Deklaration
-	int socketFD, serverID, clientID;
+	int socketFD, serverID, clientID, count = 0;
 	msqElement c2s;
 	char ** msgId;
 	MYSQL * con;
@@ -78,7 +78,7 @@ int main (int argc, char **argv) {
 						}
 						break;
 			case 19:	switch (processSPAT(message, geoTable, clients)) {
-							case 0: fprintf(stdout, "SPaT-Nachricht verarbeitet\n");
+							case 0: fprintf(stdout, "SPaT-Nachricht # %i verarbeitet\n", ++count);
 									break;
 							case 1:	fprintf(stderr, "Error: SPaT-Nachricht ohne IntersectionState-Knoten!\n");
 									break;

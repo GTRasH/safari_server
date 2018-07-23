@@ -18,12 +18,16 @@ void setError(char *message, int abend) {
 }
 
 void freeArray(char ** array) {
-	int i=0;
-	while (*(array+i) != NULL)
-		free(*(array+i++));
-
-	free(*(array+i));
-	free(array);
+	if (array == NULL)
+		free(array);
+	else {
+		int i=0;
+		while (*(array+i) != NULL)
+			free(*(array+i++));
+	
+		free(*(array+i));
+		free(array);
+	}
 }
 
 char * getFileContent(const char * fileName) {

@@ -2,6 +2,8 @@
 
 #include <basic.h>
 
+#define Q_BUF 1024
+
 /** \brief Fehlerfunktion für MYSQL
  * 
  * \param[in] *con = MYSQL Objekt

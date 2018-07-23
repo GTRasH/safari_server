@@ -19,6 +19,18 @@ sighandler_t mySignal(int sigNr, sighandler_t signalHandler);
 
 void noZombie(int sigNr);
 
+typedef enum service {
+	unreg	= 1,	// Client von Message-Queue abmelden
+	glosa	= 2,	// GLOSA
+	udef1	= 4,
+	udef2	= 8,
+	udef3	= 16,
+	udef4	= 32,
+	udef5	= 64,
+	empty	= 128	// Client hat ausschließlcih Dienste angefordert,
+					// die am Aufenthaltsort nicht angeboten werden!
+} Service;
+
 typedef struct {
 	int latitude;
 	int longitude;
@@ -27,7 +39,7 @@ typedef struct {
 typedef struct {
 	char * name;
 	location pos;
-	unsigned int services;
+	uint8_t serviceMask;
 } clientStruct;
 
 /** \brief	Init Client bestehend aus Authentifizierung, 

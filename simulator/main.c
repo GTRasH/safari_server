@@ -21,6 +21,8 @@ int main (void) {
 	socklen_t addrlen;
 	struct sockaddr_un address;
 	
+	int count;
+	
 	// # # # Laden der Nachrichten # # #
 	fprintf(stdout, "# # # Nachrichten werden eingelesen # # #\n");
 	mapHead = getxmlptrlist(MAP_PATH);
@@ -52,6 +54,8 @@ int main (void) {
 	while((msgSocket = accept(uds, (struct sockaddr *) &address, &addrlen)) >= 0) {
 		fprintf(stdout, "- Message Manager verbunden\n");
 	
+		count = 0;
+			
 		while(1) {
 			// SPaT Nachrichten senden
 			spatElement = spatHead->first;
@@ -60,7 +64,7 @@ int main (void) {
 				setNodeValue(spatElement->ptr, "//timeStamp", timeStr);
 				free(timeStr);
 				setMessage(msgSocket, spatElement->ptr);
-				printf("SPaT Nachricht versendet\n");
+				printf("SPaT Nachricht # %i versendet\n", ++count);
 				spatElement = spatElement->next;
 				sleep(1);
 			}

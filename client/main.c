@@ -17,32 +17,37 @@ int main (void) {
 	long unsigned	fileSizeAuthOK	= strlen(fileAuthOK),
 					fileSizeServ	= strlen(fileServ),
 					fileSizeLoc		= strlen(fileLoc);
+					
+	int count = 0;
 
 	sock = getSocket(AF_INET, SOCK_STREAM, 0);
 	// setSocketConnect(&sock, "red-dev.de", 15000);
 	setSocketConnect(&sock, "localhost", 15000);
 	
-	
 	respAuth = getSocketContent(sock);	// Auth Request
+	printf("\n# # #   Authentifizierungsanforderung empfangen   # # #\n%s\n", respAuth);
+	
+	printf("\n# # #   Authentifizierung gesendet   # # #\n");
 //	printf("strlen(message) %lu\n%s", strlen(respAuth), respAuth);
 	free(respAuth);	
 	setSocketContent(sock, fileAuthOK, fileSizeAuthOK);	// Auth Response
-	
-	
+
 	respServ = getSocketContent(sock);	// Serv Request
-	printf("\n# # #   Service-Antwort gesendet   # # #\n");
+	printf("\n# # #   (Eigentlich) Serviceanforderung empfangen   # # #\n%s\n", respServ);
+	printf("\n# # #   Service-Antwort gesendet   # # #\n%s\n", fileServ);
 //	printf("strlen(message) %lu\n%s", strlen(respServ), respServ);
 	free(respServ);	
 	setSocketContent(sock, fileServ, fileSizeServ);	// Serv Response	
 
-	
 	respLoc = getSocketContent(sock);	// Loc Request
+	printf("\n# # #   Standortanforderung (oder irgendwas) empfangen   # # #\n%s\n", respLoc);
+	printf("\n# # #   Standort gesendet   # # #\n");
 //	printf("strlen(message) %lu\n%s", strlen(respLoc), respLoc);
 	setSocketContent(sock, fileLoc, fileSizeLoc);	// Loc Response
 	
-	for (int i = 0; i < 10; i++) {
+	while(1) {
 		respMSQ = getSocketContent(sock);	// Loc Request
-		printf("\n# # #   Nachricht von SAFARI   # # #\n%s\n", respMSQ);
+		printf("\n# # #   Nachricht # %i von SAFARI   # # #\n%s\n", ++count, respMSQ);
 		free(respMSQ);
 		setSocketContent(sock, fileLoc, fileSizeLoc);
 	}

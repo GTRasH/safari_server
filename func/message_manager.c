@@ -73,15 +73,15 @@ int processSPAT(xmlDocPtr message, intersectGeo ** mapTable, msqList * clients) 
 									NULL, NULL, 0);
 		refID		= getReferenceID(ptrSPAT);
 		// Existiert keine MAP-Information, wird die SPaT-Nachricht übersprungen
-		if ((ptrMAP = getGeoElement(mapTable, refID)) == NULL)
+		if ((ptrMAP = getGeoElement(mapTable, refID)) == NULL) {
+			xmlFreeDoc(ptrMAP);
 			continue;
+		}
 			
 		refPoint	= getTree(ptrSPAT, "//AdvisorySpeed");
 		
 		s2c.prio	= 2;
 		sprintf(s2c.message, "%s", *refPoint);
-		
-		freeArray(refPoint);
 		
 		while (clientPtr != NULL) {
 			
@@ -95,6 +95,10 @@ int processSPAT(xmlDocPtr message, intersectGeo ** mapTable, msqList * clients) 
 			  
 			clientPtr = clientPtr->next;
 		}
+		
+		freeArray(refPoint);
+		xmlFreeDoc(ptrMAP);
+		xmlFreeDoc(ptrSPAT);
 	}
 	
 	freeArray(stateXML);

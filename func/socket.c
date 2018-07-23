@@ -132,10 +132,11 @@ char * getSocketContent(socket_t sock) {
 	bufSize = 1;
 	
 	do {
-		if ((recvBytes = recv(sock, buf, MSG_BUF, 0)) <= 0) {
-			free(string);
-			return NULL;
-		}
+		//if ((
+		recvBytes = recv(sock, buf, MSG_BUF, 0);	//) <= 0) {
+//			free(string);
+//			return NULL;
+//		}
 		buf[recvBytes] = '\0';
 		bufSize	 += recvBytes;
 		string	  = realloc(string, sizeof(char) * bufSize);

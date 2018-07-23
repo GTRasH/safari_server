@@ -41,11 +41,13 @@ int setClientInit(int sock, clientStruct * client) {
 			if (reqServ == NULL)
 				printf("Error while getting REQ-SERV (%s) Content\n", REQ_SERV);
 			else {
+				printf("Authentifizierung OK - angemeldet als user: %s\n", client->name);
 				printf("\n# # #   Sende Service-Anforderung   # # #\n%s", reqServ);
 				func = setClientServices;
-				if (getClientResponse(sock, 10, func, reqServ, client))
+				if (getClientResponse(sock, 10, func, reqAuth, client))
 					printf("Client fordert keine Services an -> Abbruch\n");
 				else {
+					printf("getClientResponse(setClientServices) - OK\n");
 					reqLoc = getFileContent(REQ_LOC);
 					// Fehler beim Lesen der Loc-Request File
 					if (reqLoc == NULL)
@@ -73,81 +75,93 @@ int setClientInit(int sock, clientStruct * client) {
 int getClientResponse(	int sock, int retries, 
 						int (* func) (char *, clientStruct *), 
 						char * message, clientStruct * client) {
-
 	char * resp;
-	int result;
-	long unsigned messageSize = strlen(message);
+	int result = 0;
+	long unsigned msgSize = strlen(message);
 	
 	if (message == NULL)
 		return 1;
 	
-	else {
-		// sende den Request bis zu `retries` Mal
-		do {
-			setSocketContent(sock, message, messageSize);
-			if ((resp = getSocketContent(sock)) == NULL) {
-				result = 1;
-				break;
-			}
-			// printf("%s", resp);
-			result	= func(resp, client);
+	// sende den Request bis zu `retries` Mal
+	do {
+		setSocketContent(sock, message, msgSize);
+		resp = getSocketContent(sock);
+		if (resp == NULL) {
 			free(resp);
-		} while (result && --retries);
-	}
+			result = 1;
+			break;
+		}
+		result = func(resp, client);
+		free(resp);
+	} while (result && --retries);
+
 	return result;
 }
 
 int setClientResponse(char * msg, clientStruct * client) {
 	char ** test;
 	xmlDocPtr xmlMsg = xmlReadMemory(msg, strlen(msg), NULL, NULL, 0);
+	// Client-Antwort enthält Positionsdaten
 	test = getNodeValue(xmlMsg, "//refPoint/long");
 	if (test != NULL) {
+		xmlFreeDoc(xmlMsg);
 		freeArray(test);
 		return setClientLocation(msg, client);
 	}
 	freeArray(test);
+	// Client-Antwort enthält Services
 	test = getNodeValue(xmlMsg, "//service");
 	if (test != NULL) {
+		xmlFreeDoc(xmlMsg);
 		freeArray(test);
 		return setClientServices(msg, client);
 	}
+	// Client hat weder mit Positionsdaten noch mit Services geantwortet
+	xmlFreeDoc(xmlMsg);
 	freeArray(test);
 	return 1;
 }
 
 int setClientLocation(char * msg, clientStruct * client) {
-	char ** longitude, ** latitude;
-	xmlDocPtr xmlMsg = xmlReadMemory(msg, strlen(msg), NULL, NULL, 0);
-	longitude		 = getNodeValue(xmlMsg, "//refPoint/long");
-	latitude		 = getNodeValue(xmlMsg, "//refPoint/lat");
+	xmlDocPtr xmlMsg  = xmlReadMemory(msg, strlen(msg), NULL, NULL, 0);
+	char ** longitude = getNodeValue(xmlMsg, "//refPoint/long");
+	char ** latitude  = getNodeValue(xmlMsg, "//refPoint/lat");
 	// Ungültiger Location-Response
-	if (longitude == NULL || latitude == NULL)
+	if (longitude == NULL || latitude == NULL) {
+		freeArray(longitude);
+		freeArray(latitude);
+		xmlFreeDoc(xmlMsg);
 		return 1;
-		
-	client->pos.latitude = strtol(*(latitude), NULL, 10);
+	}
+	client->pos.latitude  = strtol(*(latitude), NULL, 10);
 	client->pos.longitude = strtol(*(longitude), NULL, 10);
 	
 	freeArray(longitude);
 	freeArray(latitude);
+	xmlFreeDoc(xmlMsg);
 	return 0;
 }
 
 int setClientAuth(char * msg, clientStruct * client) {
-	char ** nodeUser, ** nodePass;
-	int result = 1;
 	MYSQL_RES * dbResult;
-	char query[MSG_BUF];
+	char query[Q_BUF];
+
+	int result		 = 1;
 	MYSQL * dbCon	 = sqlConnect("safari");
 	xmlDocPtr xmlMsg = xmlReadMemory(msg, strlen(msg), NULL, NULL, 0);
-	nodeUser		 = getNodeValue(xmlMsg, "//data/user");
-	nodePass		 = getNodeValue(xmlMsg, "//data/pass");
+	char ** nodeUser = getNodeValue(xmlMsg, "//data/user");
+	char ** nodePass = getNodeValue(xmlMsg, "//data/pass");
 	// Ungültiger Auth-Response
-	if (nodeUser == NULL || nodePass == NULL)
-		return 1;
+	if (nodeUser == NULL || nodePass == NULL) {
+		freeArray(nodeUser);
+		freeArray(nodePass);
+		xmlFreeDoc(xmlMsg);
+		return result;
+	}
 
 	sprintf(query,	"SELECT name FROM users WHERE name = '%s' AND "
 					"pass = AES_ENCRYPT('%s', SHA2('safari', 512))"
-					, *nodeUser, *nodePass);
+					, *(nodeUser), *(nodePass));
 	
 	if (mysql_query(dbCon, query))
 		sqlError(dbCon);
@@ -169,13 +183,47 @@ int setClientAuth(char * msg, clientStruct * client) {
 }
 
 int setClientServices(char * msg, clientStruct * client) {
-	char ** services;
-	xmlDocPtr xml = xmlReadMemory(msg, strlen(msg), NULL, NULL, 0);
-	services = getNodeValue(xml, "//service");
-	printf("services:");
-	for (int i = 0; *(services+i); i++)
-		printf(" %s", *(services+i));
-		
-	printf("\n");
+	uint8_t servReqID, servRowID;
+	MYSQL_RES * dbResult;
+	MYSQL_ROW row;
+	char query[Q_BUF];
+	MYSQL * dbCon	 = sqlConnect("safari");
+	xmlDocPtr xmlMsg = xmlReadMemory(msg, strlen(msg), NULL, NULL, 0);
+	char ** services = getNodeValue(xmlMsg, "//service");
+	char ** cityID	 = getNodeValue(xmlMsg, "//cityID");
+	// Ungültiger Service-Response
+	if (services == NULL || cityID == NULL) {
+		freeArray(services);
+		xmlFreeDoc(xmlMsg);
+		return 1;
+	}
+	// Prüfe die angeforderten Dienste gegen die für die Stadt Hinterlegten
+	sprintf(query,	"SELECT serviceid FROM services "
+					"WHERE cityid = '%s'", *(cityID));
+	
+	if (mysql_query(dbCon, query))
+		sqlError(dbCon);
+	if ((dbResult = mysql_store_result(dbCon)) == NULL)
+		sqlError(dbCon);
+	
+	client->serviceMask = 0;
+	
+	while ((row = mysql_fetch_row(dbResult))) {
+		for (int i = 0; *(services+i) != NULL; i++) {
+			servReqID = (uint8_t)strtol(*(services+i), NULL, 10);
+			servRowID = (uint8_t)strtol(row[0], NULL, 10);
+			if (servRowID == servReqID)
+				client->serviceMask += servReqID;
+		}
+	}
+	if (client->serviceMask == 0)
+		client->serviceMask = 128;
+	
+	mysql_free_result(dbResult);
+	mysql_close(dbCon);
+	xmlFreeDoc(xmlMsg);
+	freeArray(cityID);
+	freeArray(services);
+
 	return 0;
 }
