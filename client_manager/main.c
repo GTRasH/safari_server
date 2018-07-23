@@ -51,8 +51,10 @@ int main(void) {
 					printf("Client Initialisierung fehlgeschlagen!");
 				else {
 					printf(	"SAFARI-Dienst für User %s gestartet!\n"
+							"Bestätigte Dienste %i\n"
 							"Client Position latitude = %i | longitude = %i\n"
-							, client->name, client->pos.latitude, client->pos.longitude);
+							, client->name, client->serviceMask
+							, client->pos.latitude, client->pos.longitude);
 
 					printf("Getting server-message-queue... ");
 					serverID = msgget(KEY, 0);
@@ -98,7 +100,7 @@ int main(void) {
 					sprintf (c2s.message, "%d", clientID);
 					msgsnd (serverID, &c2s, MSQ_LEN, 0);
 				}
-				printf("Client Socket %d beendet\r\n", sockClient);
+				printf("Client_Manger (Kindprozess) beendet\n");
 				fflush(stdout);
 				close(sockClient);
 				exit(EXIT_SUCCESS);

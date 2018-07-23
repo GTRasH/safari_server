@@ -7,9 +7,9 @@
 	<data>
 		<cityID>1</cityID>
 		<services>
-			<service>1</service>	<!-- GLOSA -->
-			<service>2</service>	<!-- not implemented -->
+			<service>2</service>	<!-- GLOSA -->
 			<service>4</service>	<!-- not implemented -->
+			<service>8</service>	<!-- not implemented -->
 		</services>
 	</data>
 </safari>
