@@ -144,8 +144,8 @@ int setClientLocation(char * msg, clientStruct * client) {
 
 int setClientAuth(char * msg, clientStruct * client) {
 	MYSQL_RES * dbResult;
-	char query[Q_BUF];
-
+	char query[Q_BUF], logText[LOG_BUF];
+	
 	int result		 = 1;
 	MYSQL * dbCon	 = sqlConnect("safari");
 	xmlDocPtr xmlMsg = xmlReadMemory(msg, strlen(msg), NULL, NULL, 0);
@@ -173,6 +173,8 @@ int setClientAuth(char * msg, clientStruct * client) {
 	else {
 		client->name = mysql_fetch_row(dbResult)[0];
 		result = 0;
+		sprintf(logText, "User '%s' logged in successfully", client->name);
+		setLogText(logText);
 	}
 	mysql_free_result(dbResult);
 	mysql_close(dbCon);

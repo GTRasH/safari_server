@@ -56,16 +56,16 @@ int main(void) {
 							, client->name, client->serviceMask
 							, client->pos.latitude, client->pos.longitude);
 
-					printf("Getting server-message-queue... ");
-					serverID = msgget(KEY, 0);
-					if (serverID < 0)
-						printf("Failed\n");
-					else
-						printf("Done\n");
-					
 					printf("Getting client-message-queue... ");
 					clientID = msgget(IPC_PRIVATE, PERM | IPC_CREAT);
 					if (clientID < 0)
+						printf("Failed\n");
+					else
+						printf("Done\n");
+
+					printf("Getting server-message-queue... ");
+					serverID = msgget(KEY, 0);
+					if (serverID < 0)
 						printf("Failed\n");
 					else
 						printf("Done\n");

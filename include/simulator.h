@@ -1,4 +1,3 @@
-#include <time.h>
 #include <dirent.h>
 
 #include <basic.h>
@@ -33,4 +32,4 @@ void freeList(xmlListHead * head);
 
 void setMessage(int msgSocket, xmlDocPtr doc);
 
-int getMinuteOfTheYear(void);
+void getTimestamp(int * moy, int * mSec);

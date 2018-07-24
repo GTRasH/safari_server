@@ -1,9 +1,14 @@
 #include <sys/types.h>
+#include <time.h>
+#include <sys/time.h>
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+
+#define LOG "./../var/log"
+#define LOG_BUF 256
 
 /** \brief Fehlerfunktion
  * 
@@ -37,3 +42,7 @@ void freeArray(char ** array);
  * \return	String wenn OK, sonst exit(1)
  */
 char * getFileContent(const char * fileName);
+
+void setLogText(char * text);
+
+char ** getSplitString(char * a_str, const char a_delim);
