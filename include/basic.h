@@ -7,7 +7,8 @@
 #include <string.h>
 #include <errno.h>
 
-#define LOG "./../var/log"
+#define LOG_CLIENT "./../var/log/client"
+#define LOG_SERVER "./../var/log/server"
 #define LOG_BUF 256
 
 /** \brief Fehlerfunktion
@@ -43,6 +44,6 @@ void freeArray(char ** array);
  */
 char * getFileContent(const char * fileName);
 
-void setLogText(char * text);
+void setLogText(char * text, const char * logFile);
 
 char ** getSplitString(char * a_str, const char a_delim);

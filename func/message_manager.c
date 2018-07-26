@@ -53,8 +53,7 @@ int processMAP(xmlDocPtr message, MYSQL *con, intersectGeo ** mapTable, uint8_t 
 					"\n%s\n\n", refID, mysql_fetch_row(res)[0]);
 			mysql_free_result(res);
 		}
-		
-		
+
 		xmlFreeDoc(xmlPtr);
 		// Aktualisierung der MAP-Table
 		setGeoElement(mapTable, refID, "0", *(geoXML+i));
@@ -86,9 +85,9 @@ int processSPAT(xmlDocPtr message, intersectGeo ** mapTable, msqList * clients, 
 		if (clientPtr == NULL && test == 0)
 			break;
 
-		ptrSPAT		= xmlReadMemory(*(stateXML+i), strlen(*(stateXML+i)), 
-									NULL, NULL, 0);
-		refID		= getReferenceID(ptrSPAT);
+		ptrSPAT	= xmlReadMemory(*(stateXML+i), strlen(*(stateXML+i)), 
+								NULL, NULL, 0);
+		refID	= getReferenceID(ptrSPAT);
 		// Existiert keine MAP-Information, wird die SPaT-Nachricht übersprungen
 		if ((ptrMAP = getGeoElement(mapTable, refID)) == NULL) {
 			xmlFreeDoc(ptrMAP);
@@ -105,12 +104,10 @@ int processSPAT(xmlDocPtr message, intersectGeo ** mapTable, msqList * clients, 
 			freeArray(moy);
 			freeArray(mSec);
 		}
-			
+		
 		refPoint	= getTree(ptrSPAT, "//AdvisorySpeed");
-		
 		s2c.prio	= 2;
-		sprintf(s2c.message, "%s", *refPoint);
-		
+		sprintf(s2c.message, "%s", *(refPoint));
 		while (clientPtr != NULL) {
 			
 			res = msgsnd(clientPtr->id, &s2c, MSQ_LEN, 0);
@@ -119,7 +116,8 @@ int processSPAT(xmlDocPtr message, intersectGeo ** mapTable, msqList * clients, 
 				printf ("Konnte Nachricht an Client MQ %d nicht zustellen\n",
 						clientPtr->id);
 			else
-				printf("Nachricht an Client MQ %d zugestellt\n", clientPtr->id);
+				printf ("Nachricht an Client MQ %d zugestellt\n",
+						clientPtr->id);
 			  
 			clientPtr = clientPtr->next;
 		}
@@ -343,6 +341,25 @@ msqList * msqListRemove(int i, msqList * clients) {
 			break;
 		}
 		ptr=ptr_tmp;
+	}
+	return clients;
+}
+
+msqList * setMsqClients(int serverID, msqList * clients) {
+	int clientID;
+	msqElement c2s;
+	// Client Manager Registrierungen abarbeiten
+	while (msgrcv(serverID, &c2s, MSQ_LEN, 0, IPC_NOWAIT) != -1) {
+		// Deregistrierung
+		if (c2s.prio == 1 ) {
+			sscanf(c2s.message,"%d",&clientID);
+			clients = msqListRemove(clientID, clients);
+		}
+		// Registrierung für SPaT
+		else if (c2s.prio == 2) {
+			sscanf(c2s.message,"%d",&clientID);
+			clients = msqListAdd(clientID, clients);
+		}
 	}
 	return clients;
 }

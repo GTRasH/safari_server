@@ -57,7 +57,7 @@ char * getFileContent(const char * fileName) {
 	return content;
 }
 
-void setLogText(char * text) {
+void setLogText(char * text, const char * logFile) {
 	FILE * fd;
 	time_t timeVal;
 	struct tm * timeLoc;
@@ -66,7 +66,7 @@ void setLogText(char * text) {
 	time(&timeVal);
 	timeLoc = localtime(&timeVal);
 	
-	fd = fopen(LOG, "a");
+	fd = fopen(logFile, "a");
 	
 	strftime(timeStr, 20, "%Y/%m/%d %H:%M:%S", timeLoc);
 	sprintf(string, "%s\t%s", timeStr, text);

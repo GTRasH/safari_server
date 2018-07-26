@@ -139,3 +139,5 @@ void freeGeoTable(intersectGeo ** hashTable);
 msqList * msqListAdd(int i, msqList * clients);
 
 msqList * msqListRemove(int i, msqList * clients);
+
+msqList * setMsqClients(int serverID, msqList * clients);

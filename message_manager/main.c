@@ -16,9 +16,8 @@
 #include <message_manager.h>
 
 int main (int argc, char * argv[]) {
-	int socketFD, serverID, clientID, count = 0;
+	int socketFD, serverID, count = 0;
 	uint8_t test = 0;
-	msqElement c2s;
 	char ** msgId;
 	char * startParamError = "Ungültige Testoption, bitte mit --test={time|map} starten\n";
 	MYSQL * con;
@@ -58,20 +57,8 @@ int main (int argc, char * argv[]) {
 	serverID = msgget(KEY, PERM  | IPC_CREAT);
 	// Nachrichtenverarbeitung bis Simulator abendiert
 	while (1) {
-		// Client Manager Registrierungen abarbeiten
-		while (msgrcv(serverID, &c2s, MSQ_LEN, 0, IPC_NOWAIT) != -1) {
-			// Deregistrierung
-			if (c2s.prio == 1 ) {
-				sscanf(c2s.message,"%d",&clientID);
-				clients = msqListRemove(clientID, clients);
-			}
-			// Registrierung für SPaT
-			else if (c2s.prio == 2) {
-				sscanf(c2s.message,"%d",&clientID);
-				clients = msqListAdd(clientID, clients);
-			}
-		}
-
+		clients = setMsqClients(serverID, clients);
+		
 		if ((message = getMessage(socketFD)) == NULL) {
 			printf ("Error: Message Manager beendet - "
 					"Fehler beim Empfangen einer Nachricht vom Simulator\n");
