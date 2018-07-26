@@ -104,11 +104,17 @@ void setSocketListen(socket_t *sock ) {
 void setSocketAccept(socket_t *socket, socket_t *new_socket) {
 	struct sockaddr_in client;
 	unsigned int len;
-   
+	char logText[LOG_BUF];
+	
 	len = sizeof(client);
 	*new_socket = accept(*socket,(struct sockaddr *)&client, &len);
 	if (*new_socket  == -1) 
 		setError("Error while accept() : ", 0);
+	else {
+		sprintf(logText, "[accept]   Client connected from %s\n",
+				inet_ntoa(client.sin_addr));
+		setLogText(logText, LOG_CLIENT);
+	}
 }
 
 void setSocketContent(socket_t sock, char * message, long unsigned length) {

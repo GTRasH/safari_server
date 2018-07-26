@@ -6,6 +6,11 @@
 	</header>
 	<data>
 		<cityID>1</cityID>
+		<movementType>1</movementType>	<!--
+											1 = feet
+											2 = bike
+											3 = motor
+										-->
 		<services>
 			<service>2</service>	<!-- GLOSA -->
 			<service>4</service>	<!-- not implemented -->

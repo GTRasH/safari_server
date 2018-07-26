@@ -41,7 +41,7 @@ xmlDocPtr getMessage(int sock);
  * 
  * \return	xmlDocPtr auf xmlDoc einer Nachricht
  */
-int processMAP(xmlDocPtr message, MYSQL *con, intersectGeo ** mapTable);
+int processMAP(xmlDocPtr message, MYSQL *con, intersectGeo ** mapTable, uint8_t test);
 
 /** \brief	Verarbeitet SPaT-Nachrichten
  * 			Selektiert Intersection
@@ -51,7 +51,7 @@ int processMAP(xmlDocPtr message, MYSQL *con, intersectGeo ** mapTable);
  * 
  * \return	xmlDocPtr auf xmlDoc einer Nachricht
  */
-int processSPAT(xmlDocPtr message, intersectGeo ** mapTable, msqList * clients);
+int processSPAT(xmlDocPtr message, intersectGeo ** mapTable, msqList * clients, uint8_t test);
 
 /** \brief	Berechnet aus der Regulator- und IntersectionID (jeweils 16 Bit)
  * 			die 32 Bit IntersectionReferenceID zur Verwendung als Hash-Schlüssel
@@ -139,3 +139,5 @@ void freeGeoTable(intersectGeo ** hashTable);
 msqList * msqListAdd(int i, msqList * clients);
 
 msqList * msqListRemove(int i, msqList * clients);
+
+msqList * setMsqClients(int serverID, msqList * clients);

@@ -7,11 +7,15 @@
 #include <socket.h>
 #include <xml.h>
 #include <sql.h>
-// #include <msg_queue.h>
+#include <msq.h>
 
 #define REQ_SERV "./../xml/client_manager/req_serv.xml"
 #define REQ_AUTH "./../xml/client_manager/req_auth.xml"
 #define REQ_LOC "./../xml/client_manager/req_loc.xml"
+
+#define MAX_LOGIN 10
+#define MAX_SERV 10
+#define MAX_RUN 5
 
 typedef void (*sighandler_t)(int);
 
@@ -31,15 +35,30 @@ typedef enum service {
 					// die am Aufenthaltsort nicht angeboten werden!
 } Service;
 
+typedef enum moveType {
+	unkown,
+	feet,
+	bike,
+	motor
+} moveType;
+
+typedef struct {
+	long prio;
+	char message[MSQ_LEN];
+} msqElement;
+
 typedef struct {
 	int latitude;
 	int longitude;
 } location;
 
 typedef struct {
-	char * name;
+	char name[50];
 	location pos;
 	uint8_t serviceMask;
+	unsigned int pid;
+	moveType type;
+	
 } clientStruct;
 
 /** \brief	Init Client bestehend aus Authentifizierung, 
@@ -97,3 +116,7 @@ int setClientServices(char * msg, clientStruct * client);
  * \return	> 0 wenn NOK, 0 sonst
  */
 int setClientResponse(char * msg, clientStruct * client);
+
+clientStruct * setClientStruct(unsigned int pid);
+
+char * getServiceName(uint8_t servID);

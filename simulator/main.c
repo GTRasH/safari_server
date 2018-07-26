@@ -12,17 +12,33 @@
 #include <socket.h>
 #include <simulator.h>
 
-int main (void) {
-	// Deklarationen
+int main (int argc, char * argv[]) {
 	xmlListHead * mapHead, * spatHead;
 	xmlListElement * mapElement, * spatElement;
 	int uds, msgSocket;
-	char * timeStr;
+	char * strMoy, * strMSec;
 	socklen_t addrlen;
 	struct sockaddr_un address;
-	
+	int period = 1000000;	// µs für 1 Hz
+	double tmp;
+	int moy, mSec;
+
 	int count;
 	
+	// # # # Ggf. Nachrichtenfrequenz einstellen # # #
+	printf("# # # Simulator gestartet # # #\n");
+	if (argc == 1)
+		printf("- Nachrichtenfrequenz: 1 Hz\n\n");
+	else {
+		tmp = strtod(argv[1],NULL);
+		if (tmp == 0.0 || tmp > 100.0)
+			printf ("- max. Nachrichtenfrequenz = 100 Hz ... "
+					"Standardfrequenz eingestellt\n\n");
+		else {
+			period *= (1/tmp);
+			printf ("- Nachrichtenfrequenz: %.1f Hz\n\n", tmp);
+		}
+	}
 	// # # # Laden der Nachrichten # # #
 	fprintf(stdout, "# # # Nachrichten werden eingelesen # # #\n");
 	mapHead = getxmlptrlist(MAP_PATH);
@@ -60,24 +76,33 @@ int main (void) {
 			// SPaT Nachrichten senden
 			spatElement = spatHead->first;
 			while (spatElement->ptr != NULL) {
-				timeStr = int2string(time(NULL));
-				setNodeValue(spatElement->ptr, "//timeStamp", timeStr);
-				free(timeStr);
+				// Zeitangabe aktualisieren
+				getTimestamp(&moy, &mSec);
+				strMoy	= int2string(moy);
+				strMSec	= int2string(mSec);
+				setNodeValue(spatElement->ptr, "//IntersectionState/moy", strMoy);
+				setNodeValue(spatElement->ptr, "//SPAT/timeStamp", strMoy);
+				setNodeValue(spatElement->ptr, "//IntersectionState/timeStamp", strMSec);
+				free(strMoy);
+				free(strMSec);
+				
 				setMessage(msgSocket, spatElement->ptr);
-				printf("SPaT Nachricht # %i versendet\n", ++count);
+				printf	("SPaT Nachricht # %i versendet. Moy = %i mSec = %i\n",
+						++count, moy, mSec);
 				spatElement = spatElement->next;
-				sleep(1);
+				usleep(period);
 			}
 			// MAP Nachrichten senden
 			mapElement = mapHead->first;
 			while (mapElement->ptr != NULL) {
-				timeStr = int2string(time(NULL));
-				setNodeValue(mapElement->ptr, "//timeStamp", timeStr);
-				free(timeStr);
+				getTimestamp(&moy, &mSec);
+				strMoy	= int2string(moy);
+				setNodeValue(mapElement->ptr, "//timeStamp", strMoy);
+				free(strMoy);
 				setMessage(msgSocket, mapElement->ptr);
 				printf("MAP Nachricht versendet\n");
 				mapElement = mapElement->next;
-				sleep(1);
+				usleep(period);
 			}
 		 }
 	}

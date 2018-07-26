@@ -13,10 +13,11 @@ xmlDocPtr getMessage(int sock) {
 	return msgXML;
 }
 
-int processMAP(xmlDocPtr message, MYSQL *con, intersectGeo ** mapTable) {
+int processMAP(xmlDocPtr message, MYSQL *con, intersectGeo ** mapTable, uint8_t test) {
+	MYSQL_RES * res;
 	xmlDocPtr xmlPtr;
 	uint32_t refID, xmlLen;
-	char * query, ** geoTree, ** geoXML;
+	char * query, ** geoTree, ** geoXML, testQuery[Q_BUF];
 	// Jedes Element von geometry ist ein gültiger XML-String
 	if ((geoTree = getTree(message, "//IntersectionGeometry")) == NULL)
 		return 1;
@@ -38,6 +39,21 @@ int processMAP(xmlDocPtr message, MYSQL *con, intersectGeo ** mapTable) {
 		if (mysql_query(con, query))
 			sqlError(con);
 		free(query);
+		// TESTING
+		if (test & 2) {
+			
+			sprintf (testQuery, "SELECT xml FROM map "
+								"WHERE referenceid = '%i'", refID);
+			if (mysql_query(con, testQuery))
+				sqlError(con);
+			res = mysql_store_result(con);
+			
+			
+			printf ("DB für IntersectionReferenceID %i aktualisiert!"
+					"\n%s\n\n", refID, mysql_fetch_row(res)[0]);
+			mysql_free_result(res);
+		}
+
 		xmlFreeDoc(xmlPtr);
 		// Aktualisierung der MAP-Table
 		setGeoElement(mapTable, refID, "0", *(geoXML+i));
@@ -46,43 +62,52 @@ int processMAP(xmlDocPtr message, MYSQL *con, intersectGeo ** mapTable) {
 	return 0;
 }
 
-int processSPAT(xmlDocPtr message, intersectGeo ** mapTable, msqList * clients) {
+int processSPAT(xmlDocPtr message, intersectGeo ** mapTable, msqList * clients, uint8_t test) {
 	int res;
 	xmlDocPtr ptrSPAT, ptrMAP;
 	uint32_t refID;
-	char ** stateRaw, ** stateXML, ** refPoint;
+	char ** stateRaw, ** stateXML, ** refPoint, ** moy, ** mSec;
 	
 	msqList * clientPtr;
 	msqElement s2c;
 
+	// Erzeuge ein Array aus IntersectionState-Elementen
 	if ((stateRaw = getTree(message, "//IntersectionState")) == NULL) {
 		freeArray(stateRaw);
 		return 1;
 	}
-		
 	stateXML = getWellFormedXML(stateRaw);
 	freeArray(stateRaw);
 	
 	for (int i = 0; *(stateXML+i); ++i) {
 		clientPtr = clients;
-		// Schleifenabbruch wenn keine Clients registriert sind
-		if (clientPtr == NULL)
+		// Schleifenabbruch wenn keine Clients registriert sind und Testing deaktiviert
+		if (clientPtr == NULL && test == 0)
 			break;
 
-		ptrSPAT		= xmlReadMemory(*(stateXML+i), strlen(*(stateXML+i)), 
-									NULL, NULL, 0);
-		refID		= getReferenceID(ptrSPAT);
+		ptrSPAT	= xmlReadMemory(*(stateXML+i), strlen(*(stateXML+i)), 
+								NULL, NULL, 0);
+		refID	= getReferenceID(ptrSPAT);
 		// Existiert keine MAP-Information, wird die SPaT-Nachricht übersprungen
 		if ((ptrMAP = getGeoElement(mapTable, refID)) == NULL) {
 			xmlFreeDoc(ptrMAP);
 			continue;
 		}
+		// TESTING - Zeitstempel auf Konsole ausgeben
+		if (test & 1) {
+			moy	 = getNodeValue(ptrSPAT, "//moy");
+			mSec = getNodeValue(ptrSPAT, "//timeStamp");
 			
+			printf ("IntersectionState mit moy = %s und mSec = %s verarbeitet\n",
+					*(moy), *(mSec));
+					
+			freeArray(moy);
+			freeArray(mSec);
+		}
+		
 		refPoint	= getTree(ptrSPAT, "//AdvisorySpeed");
-		
 		s2c.prio	= 2;
-		sprintf(s2c.message, "%s", *refPoint);
-		
+		sprintf(s2c.message, "%s", *(refPoint));
 		while (clientPtr != NULL) {
 			
 			res = msgsnd(clientPtr->id, &s2c, MSQ_LEN, 0);
@@ -91,7 +116,8 @@ int processSPAT(xmlDocPtr message, intersectGeo ** mapTable, msqList * clients) 
 				printf ("Konnte Nachricht an Client MQ %d nicht zustellen\n",
 						clientPtr->id);
 			else
-				printf("Nachricht an Client MQ %d zugestellt\n", clientPtr->id);
+				printf ("Nachricht an Client MQ %d zugestellt\n",
+						clientPtr->id);
 			  
 			clientPtr = clientPtr->next;
 		}
@@ -315,6 +341,25 @@ msqList * msqListRemove(int i, msqList * clients) {
 			break;
 		}
 		ptr=ptr_tmp;
+	}
+	return clients;
+}
+
+msqList * setMsqClients(int serverID, msqList * clients) {
+	int clientID;
+	msqElement c2s;
+	// Client Manager Registrierungen abarbeiten
+	while (msgrcv(serverID, &c2s, MSQ_LEN, 0, IPC_NOWAIT) != -1) {
+		// Deregistrierung
+		if (c2s.prio == 1 ) {
+			sscanf(c2s.message,"%d",&clientID);
+			clients = msqListRemove(clientID, clients);
+		}
+		// Registrierung für SPaT
+		else if (c2s.prio == 2) {
+			sscanf(c2s.message,"%d",&clientID);
+			clients = msqListAdd(clientID, clients);
+		}
 	}
 	return clients;
 }
