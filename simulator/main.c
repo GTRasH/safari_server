@@ -41,6 +41,7 @@ int main (int argc, char * argv[]) {
 	}
 	// # # # Laden der Nachrichten # # #
 	fprintf(stdout, "# # # Nachrichten werden eingelesen # # #\n");
+		
 	mapHead = getxmlptrlist(MAP_PATH);
 	if (mapHead->first->ptr == NULL)
 		setError("Error: Unable to load MAP messages\n", 1);
