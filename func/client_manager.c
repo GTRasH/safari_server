@@ -29,14 +29,14 @@ int setClientInit(int sock, clientStruct * client) {
 	int result = 1;
 	reqAuth = getFileContent(REQ_AUTH);
 	// Fehler beim Lesen der Auth-Request File
-	if (reqAuth == NULL)
-		printf("Error while getting REQ-AUTH (%s) Content\n", REQ_AUTH);
-	else {
-		printf("\n# # #   Sende Authentifizierungs-Anforderung   # # #\n%s", reqAuth);
+	if (reqAuth == NULL) {
+		sprintf(logText,"Error while getting REQ_AUTH (%s) content\n", REQ_AUTH);
+		setLogText(logText, LOG_SERVER);
+	
+	} else {
 		// Sonst: Sende Authentifizierungs-Anforderung
 		func = setClientAuth;
 		if (getClientResponse(sock, MAX_LOGIN, func, reqAuth, client)) {
-			printf("10 ungültige Login-Versuche -> Abbruch!\n");
 			sprintf(logText, "[%u]   Max. failed login requests (%i) reached\n",
 					client->pid, MAX_LOGIN);
 			setLogText(logText, LOG_CLIENT);
@@ -45,7 +45,7 @@ int setClientInit(int sock, clientStruct * client) {
 			reqServ = getFileContent(REQ_SERV);
 			// Fehler beim Lesen der Loc-Request File
 			if (reqServ == NULL) {
-				sprintf(logText, "Error while getting REQ-SERV (%s) Content\n", REQ_SERV);
+				sprintf(logText, "Error while getting REQ_SERV (%s) content\n", REQ_SERV);
 				setLogText(logText, LOG_SERVER);
 			
 			} else {
@@ -55,18 +55,21 @@ int setClientInit(int sock, clientStruct * client) {
 					client->name, MAX_SERV);
 					setLogText(logText, LOG_CLIENT);
 				} else {
-					printf("getClientResponse(setClientServices) - OK\n");
 					reqLoc = getFileContent(REQ_LOC);
 					// Fehler beim Lesen der Loc-Request File
-					if (reqLoc == NULL)
-						printf("Error while getting REQ-LOC (%s) Content\n", REQ_LOC);
-					else {
+					if (reqLoc == NULL) {
+						sprintf(logText, "Error while getting REQ_LOC (%s) content\n", REQ_LOC);
+						setLogText(logText, LOG_SERVER);
+					
+					} else {
 						// Sonst: Sende Lokalisierungs-Anforderung
-						printf("\n# # #   Sende Standort-Anforderung   # # #\n%s", reqLoc);
 						func = setClientLocation;
-						if (getClientResponse(sock, 10, func, reqLoc, client))
-							printf("Client sendet keine Positionsdaten -> Abbruch\n");
-						else
+						if (getClientResponse(sock, MAX_LOC, func, reqLoc, client)) {
+							sprintf(logText, "[%s]   Max. failed location requests (%i) reached\n",
+									client->name, MAX_LOC);
+							setLogText(logText, LOG_CLIENT);
+							
+						} else
 							result = 0;
 					} // eo request location
 					free(reqLoc);
@@ -84,14 +87,20 @@ int getClientResponse(	int sock, int retries,
 						int (* func) (char *, clientStruct *), 
 						char * message, clientStruct * client) {
 	char * resp;
-	int result = 0;
-	long unsigned msgSize = strlen(message);
+	int result;
+	long unsigned msgSize;
 	
 	if (message == NULL)
 		return 1;
 	
+	result	= 0;
+	msgSize = strlen(message);
+	
 	// sende den Request bis zu `retries` Mal
 	do {
+		// TESTING
+		printf ("# # #   SENDE NACHRICHT AN CLIENT   # # #\n%s\n",
+				message);
 		setSocketContent(sock, message, msgSize);
 		resp = getSocketContent(sock);
 		if (resp == NULL) {
@@ -99,6 +108,9 @@ int getClientResponse(	int sock, int retries,
 			result = 1;
 			break;
 		}
+		// TESTING
+		printf ("# # #   NACHRICHT VON CLIENT EMPFANGEN   # # #\n%s\n",
+				resp);
 		result = func(resp, client);
 		free(resp);
 	} while (result && --retries);
@@ -180,16 +192,16 @@ int setClientAuth(char * msg, clientStruct * client) {
 	if ((dbResult = mysql_store_result(dbCon)) == NULL)
 		sqlError(dbCon);
 	
-	if (mysql_num_rows(dbResult) != 1) {
+	if (mysql_num_rows(dbResult) != 1)
 		sprintf(logText, "[%u]   Login failed\n", client->pid);
-		setLogText(logText, LOG_CLIENT);
-	} else {
-		strcpy(client->name, mysql_fetch_row(dbResult)[0]);
-		result = 0;
+	else {
 		sprintf(logText, "[%s]   User '%s' successfully logged in\n",
 				client->name, client->name);
-		setLogText(logText, LOG_CLIENT);
+		strcpy(client->name, mysql_fetch_row(dbResult)[0]);
+		result = 0;
 	}
+	setLogText(logText, LOG_CLIENT);
+	
 	mysql_free_result(dbResult);
 	mysql_close(dbCon);
 	xmlFreeDoc(xmlMsg);

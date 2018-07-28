@@ -9,12 +9,13 @@
 #include <sql.h>
 #include <msq.h>
 
-#define REQ_SERV "./../xml/client_manager/req_serv.xml"
-#define REQ_AUTH "./../xml/client_manager/req_auth.xml"
-#define REQ_LOC "./../xml/client_manager/req_loc.xml"
+#define REQ_SERV	LIB_SAFARI"xml/client_manager/req_serv.xml"
+#define REQ_AUTH	LIB_SAFARI"xml/client_manager/req_auth.xml"
+#define REQ_LOC 	LIB_SAFARI"xml/client_manager/req_loc.xml"
 
 #define MAX_LOGIN 10
 #define MAX_SERV 10
+#define MAX_LOC 10
 #define MAX_RUN 5
 
 typedef void (*sighandler_t)(int);

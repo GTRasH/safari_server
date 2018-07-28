@@ -3,12 +3,12 @@
 #include <basic.h>
 #include <socket.h>
 
-#define RESP_AUTH1 "./../xml/client/resp_auth_nok.xml"
-#define RESP_AUTH2 "./../xml/client/resp_auth_ok.xml"
-#define RESP_LOC "./../xml/client/resp_loc.xml"
-#define RESP_SERV "./../xml/client/resp_serv.xml"
+#define RESP_AUTH1	LIB_SAFARI"/xml/client/resp_auth_nok.xml"
+#define RESP_AUTH2	LIB_SAFARI"/xml/client/resp_auth_ok.xml"
+#define RESP_LOC	LIB_SAFARI"/xml/client/resp_loc.xml"
+#define RESP_SERV	LIB_SAFARI"/xml/client/resp_serv.xml"
 
-int main (void) {
+int main (int argc, char * argv[]) {
 	socket_t sock;
 	char * fileAuthOK  = getFileContent(RESP_AUTH2);
 	char * fileLoc	= getFileContent(RESP_LOC);
@@ -21,9 +21,12 @@ int main (void) {
 	int count = 0;
 
 	sock = getSocket(AF_INET, SOCK_STREAM, 0);
-	// setSocketConnect(&sock, "red-dev.de", 15000);
-	setSocketConnect(&sock, "localhost", 15000);
 	
+	if (argc > 1 && strcmp(argv[1], "remote") == 0)
+		setSocketConnect(&sock, "red-dev.de", 15000);
+	else
+		setSocketConnect(&sock, "localhost", 15000);
+
 	respAuth = getSocketContent(sock);	// Auth Request
 	printf("\n# # #   Authentifizierungsanforderung empfangen   # # #\n%s\n", respAuth);
 	
