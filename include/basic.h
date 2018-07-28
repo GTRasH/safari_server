@@ -7,8 +7,9 @@
 #include <string.h>
 #include <errno.h>
 
-#define LOG_CLIENT "./../var/log/client"
-#define LOG_SERVER "./../var/log/server"
+#define LIB_SAFARI "/usr/local/share/safari_server/"
+#define LOG_CLIENT 	LIB_SAFARI"/var/log/client"
+#define LOG_SERVER	LIB_SAFARI"/var/log/server"
 #define LOG_BUF 256
 
 /** \brief Fehlerfunktion

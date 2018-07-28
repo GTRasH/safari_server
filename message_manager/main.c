@@ -98,7 +98,11 @@ int main (int argc, char * argv[]) {
 		xmlFreeDoc(message);
 		freeArray(msgId);
 	}
-
+	
+	if (msgctl(serverID, IPC_RMID, NULL) == -1)
+		setError("Error while deleting msq", 0);
+	else
+		printf("MSQ gelöscht\n");
 	freeGeoTable(geoTable);
 	mysql_close(con);
 	close(socketFD);

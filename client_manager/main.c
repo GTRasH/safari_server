@@ -88,7 +88,6 @@ int main(void) {
 					while (1) {
 						res = msgrcv(clientID, &s2c, MSQ_LEN, 0, IPC_NOWAIT);
 						if (res != -1) {
-							
 							if (getClientResponse(sockClient, MAX_RUN, func, s2c.message, client)) {
 								sprintf(logText, "[%s]   Client responses %i times with invalid data\n",
 										client->name, MAX_RUN);

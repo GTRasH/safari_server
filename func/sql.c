@@ -8,7 +8,7 @@ void sqlError(MYSQL *con) {
 
 MYSQL * sqlConnect(char * db) {
 	MYSQL * con = mysql_init(NULL);
-	if ( mysql_real_connect(con, "localhost", "root", "safari", 
+	if ( mysql_real_connect(con, "localhost", "safari", "sebastian#01", 
 							db, 0, NULL, 0) == NULL)
 		sqlError(con);
 		
