@@ -4,8 +4,8 @@
 #include <socket.h>
 #include <xml.h>
 
-#define MAP_PATH	LIB_SAFARI"/xml/map/"
-#define SPAT_PATH 	LIB_SAFARI"/xml/spat/"
+#define MAP_PATH	LIB_SAFARI"xml/map/"
+#define SPAT_PATH 	LIB_SAFARI"xml/spat/"
 
 /** \brief Listen-Element für SPat- und MAP-Nachrichten (Lesevorgang) */
 typedef struct xmlListElement {
