@@ -1,8 +1,12 @@
+
+#include <sys/shm.h>
+
 #include <basic.h>
 #include <socket.h>
 #include <xml.h>
 #include <sql.h>
 #include <msq.h>
+#include <intersection.h>
 
 #define MAX_HASH 100
 

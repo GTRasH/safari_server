@@ -17,8 +17,8 @@
 
 int main (int argc, char * argv[]) {
 	int socketFD, serverID, count = 0;
-	uint8_t test = 0;
 	char ** msgId;
+	uint8_t test = 0;
 	char * startParamError = "Ungültige Testoption, bitte mit --test={time|map} starten\n";
 	MYSQL * con;
 	xmlDocPtr message;
@@ -27,7 +27,7 @@ int main (int argc, char * argv[]) {
 	// Initialsierung
 	clients	 = NULL;
 	con		 = sqlConnect("safari");	// DB-Connect
-	geoTable = getGeoTable(con);		// IntersectionGeometry-HashTable
+	geoTable = getGeoTable(con);
 	
 	// Auswertung der Testoption wenn ein Startparameter übergeben wurde
 	if (argc > 1) {

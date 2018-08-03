@@ -2,6 +2,7 @@
 #include <sys/wait.h>
 #include <signal.h>
 #include <fcntl.h>
+#include <sys/shm.h>
 
 #include <basic.h>
 #include <socket.h>
@@ -17,6 +18,44 @@
 #define MAX_SERV 10
 #define MAX_LOC 10
 #define MAX_RUN 5
+#define MAX_HASH 20
+
+
+/** \brief	Intervallgrenzen */
+typedef struct {
+	int maxLong;
+	int maxLat;
+	int minLong;
+	int minLat;
+} delimeters;
+
+/** \brief	Geoposition */
+typedef struct {
+	int latitude;
+	int longitude;
+} location;
+
+/** \brief	Segment einer Local Service Area */
+typedef struct segStruct {
+	delimeters borders;
+	struct segStruct * next;
+} segStruct;
+
+/** \brief	Local Service Area (Fahrspur) */
+typedef struct laneStruct {
+	location pos;
+	int laneID;
+	segStruct * segments;
+	struct laneStruct * next;
+} laneStruct;
+
+/** \brief	Global Service Area (Kreuzungsbereich) */
+typedef struct interStruct {
+	int refID;
+	delimeters borders;
+	laneStruct * lanes;
+	struct interStruct * next;
+} interStruct;
 
 typedef void (*sighandler_t)(int);
 
@@ -47,11 +86,6 @@ typedef struct {
 	long prio;
 	char message[MSQ_LEN];
 } msqElement;
-
-typedef struct {
-	int latitude;
-	int longitude;
-} location;
 
 typedef struct {
 	char name[50];
@@ -121,3 +155,21 @@ int setClientResponse(char * msg, clientStruct * client);
 clientStruct * setClientStruct(unsigned int pid);
 
 char * getServiceName(uint8_t servID);
+
+/** \brief 	Liefert eine Hash-Table aller Intersections eines Anbieters
+ * 
+ * \return	Hash-Table wenn OK, sonst NULL
+ */
+interStruct ** getInterStructsInit(uint16_t region);
+
+/** \brief 	Setzt Region- und Intersection-ID zur IntersectionReferenceID
+ * 			zusammen und berechnet den hash
+ * 
+ * \param[in]	region	Dienstanbieter / Verkehrsbetrieb
+ * \param[in]	id		KreuzungsID
+ * \param[out]	refID	1. 16 Bit -> Anbieter / 2. -> 16 Bit Kreuzung
+ * \param[out]	clientSock	Socket des jeweiligen Client-Prozesses
+ * 
+ * \return	void
+ */
+void getHash(uint16_t region, uint16_t id, uint32_t * refID, uint8_t * hash);

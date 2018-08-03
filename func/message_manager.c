@@ -23,7 +23,6 @@ int processMAP(xmlDocPtr message, MYSQL *con, intersectGeo ** mapTable, uint8_t 
 		return 1;
 	
 	geoXML = getWellFormedXML(geoTree);
-	
 	freeArray(geoTree);
 	
 	for (int i = 0; *(geoXML+i); ++i) {
@@ -39,15 +38,14 @@ int processMAP(xmlDocPtr message, MYSQL *con, intersectGeo ** mapTable, uint8_t 
 		if (mysql_query(con, query))
 			sqlError(con);
 		free(query);
+
 		// TESTING
 		if (test & 2) {
-			
 			sprintf (testQuery, "SELECT xml FROM map "
 								"WHERE referenceid = '%i'", refID);
 			if (mysql_query(con, testQuery))
 				sqlError(con);
 			res = mysql_store_result(con);
-			
 			
 			printf ("DB für IntersectionReferenceID %i aktualisiert!"
 					"\n%s\n\n", refID, mysql_fetch_row(res)[0]);
@@ -55,8 +53,6 @@ int processMAP(xmlDocPtr message, MYSQL *con, intersectGeo ** mapTable, uint8_t 
 		}
 
 		xmlFreeDoc(xmlPtr);
-		// Aktualisierung der MAP-Table
-		setGeoElement(mapTable, refID, "0", *(geoXML+i));
 	}
 	freeArray(geoXML);
 	return 0;
@@ -68,8 +64,7 @@ int processSPAT(xmlDocPtr message, intersectGeo ** mapTable, msqList * clients, 
 	uint32_t refID;
 	char ** stateRaw, ** stateXML, ** refPoint, ** moy, ** mSec;
 	
-	msqList * clientPtr;
-	msqElement s2c;
+	
 
 	// Erzeuge ein Array aus IntersectionState-Elementen
 	if ((stateRaw = getTree(message, "//IntersectionState")) == NULL) {

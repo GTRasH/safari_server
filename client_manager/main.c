@@ -25,6 +25,10 @@ int main(void) {
 	setSocketBind(&sockServer, INADDR_ANY, PORT);
 	setSocketListen(&sockServer);
 	
+	interStruct ** interTable, * interPtr;
+	laneStruct	* lanePtr;
+	segStruct	* segPtr;
+	
 	msqElement c2s, s2c;
 	
 	mySignal(SIGCHLD, SIG_IGN);
@@ -84,6 +88,19 @@ int main(void) {
 					setLogText(logText, LOG_CLIENT);
 					
 					func = setClientResponse;
+					
+					interTable = getInterStructsInit(1);
+					
+					for (int i = 0; i < MAX_HASH; i++) {
+						if (interTable[i] != NULL) {
+							interPtr = interTable[i];
+							while (interPtr != NULL) {
+								printf("interPtr->refID = %i\n",
+								interPtr->refID);
+								interPtr = interPtr->next;
+							}
+						}
+					}
 					
 					while (1) {
 						res = msgrcv(clientID, &s2c, MSQ_LEN, 0, IPC_NOWAIT);
