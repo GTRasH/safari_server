@@ -351,7 +351,7 @@ void getHash(uint16_t region, uint16_t id, uint32_t * refID, uint8_t * hash) {
 	*hash	= *refID % MAX_HASH;
 }
 
-interStruct ** getInterStructsInit(uint16_t region) {
+interStruct ** getInterStructTable(uint16_t region) {
 	uint32_t refID;
 	uint16_t interID;
 	uint8_t hash;
@@ -386,6 +386,7 @@ interStruct ** getInterStructsInit(uint16_t region) {
 		getHash(region, interID, &refID, &hash);
 		inter					= malloc(sizeof(interStruct));
 		inter->refID			= refID;
+		inter->next				= NULL;
 		inter->lanes			= NULL;
 		inter->borders.maxLong	= (int)strtol(rowInter[1], NULL, 10);
 		inter->borders.maxLat	= (int)strtol(rowInter[2], NULL, 10);
@@ -461,5 +462,10 @@ interStruct ** getInterStructsInit(uint16_t region) {
 		mysql_free_result(resLane);
 	}
 	mysql_free_result(resInter);
+	mysql_close(dbCon);
 	return table;
+}
+
+void setInterStruct(interStruct ** table, uint16_t region, uint16_t id) {
+	
 }

@@ -84,3 +84,50 @@ xmlDocPtr getdoc(char *docname) {
 	}
 	return doc;
 }
+
+char ** getWellFormedXML(char ** trees) {
+	size_t xmlLength;
+	int count;
+	
+	for (count = 0; trees[count]; count++);
+	
+	char ** ret = calloc(count+1, sizeof(char *));
+	
+	for (int i = 0; i < count; i++) {
+		xmlLength	= strlen(trees[i]);
+		ret[i]		= calloc(xmlLength+XML_TAG_LEN+1, sizeof(char));
+		strcpy(ret[i], XML_TAG);
+		strcat(ret[i], trees[i]);
+	}
+	ret[count] = NULL;
+	return ret;
+}
+
+char ** getTree(xmlDocPtr message, char * tag) {
+	xmlXPathObjectPtr xpathObj;
+	xmlNodeSetPtr nodeSet;
+	xmlBufferPtr xmlBuff;
+	char ** array;
+	int countNodes, dumpSize;
+	// Aufruf aller Knoten (Evaluierung mittels tag)
+	xpathObj = getNodes(message, tag);
+	nodeSet	 = xpathObj->nodesetval;
+	if ((countNodes = (nodeSet) ? nodeSet->nodeNr : 0) == 0) {
+		xmlXPathFreeNodeSet(nodeSet);
+		return NULL;
+	}
+
+	// erstellt für jeden gefundenen Tag einen XML-Doc-String
+	array = calloc(countNodes+1, sizeof(char*));
+	for (int i = 0; i < countNodes; ++i) {
+		xmlBuff	 = xmlBufferCreate();
+		dumpSize = xmlNodeDump(xmlBuff, message, nodeSet->nodeTab[i], 0, 0);
+		array[i] = calloc((dumpSize + 1), sizeof(char));
+		array[i] = strcpy(array[i], (char *) xmlBuff->content);
+		array[i][dumpSize] = '\0';
+		xmlBufferFree(xmlBuff);
+	}
+	array[countNodes] = NULL;	// Array sicher abgeschlossen
+	xmlXPathFreeObject(xpathObj);
+	return array;
+}

@@ -20,14 +20,10 @@ int main (int argc, char * argv[]) {
 	char ** msgId;
 	uint8_t test = 0;
 	char * startParamError = "Ungültige Testoption, bitte mit --test={time|map} starten\n";
-	MYSQL * con;
 	xmlDocPtr message;
 	msqList * clients;
-	intersectGeo ** geoTable;
 	// Initialsierung
 	clients	 = NULL;
-	con		 = sqlConnect("safari");	// DB-Connect
-	geoTable = getGeoTable(con);
 	
 	// Auswertung der Testoption wenn ein Startparameter übergeben wurde
 	if (argc > 1) {
@@ -75,7 +71,7 @@ int main (int argc, char * argv[]) {
 		
 		// messageId auswerten und weitere Verarbeitung triggern
 		switch ((int)strtol(msgId[0], NULL, 10)) {
-			case 18:	switch (processMAP(message, con, geoTable, test)) {
+			case 18:	switch (processMAP(message, clients, test)) {
 							case 0: fprintf(stdout, "MAP-Nachricht verarbeitet\n");
 									break;
 							case 1:	fprintf(stderr, "Error: MAP-Nachricht ohne IntersectionGeometry-Knoten!\n");
@@ -83,7 +79,7 @@ int main (int argc, char * argv[]) {
 							default: ; break;
 						}
 						break;
-			case 19:	switch (processSPAT(message, geoTable, clients, test)) {
+			case 19:	switch (processSPAT(message, clients, test)) {
 							case 0: fprintf(stdout, "SPaT-Nachricht # %i verarbeitet\n", ++count);
 									break;
 							case 1:	fprintf(stderr, "Error: SPaT-Nachricht ohne IntersectionState-Knoten!\n");
@@ -103,8 +99,7 @@ int main (int argc, char * argv[]) {
 		setError("Error while deleting msq", 0);
 	else
 		printf("MSQ gelöscht\n");
-	freeGeoTable(geoTable);
-	mysql_close(con);
+
 	close(socketFD);
 	
 	return EXIT_SUCCESS;

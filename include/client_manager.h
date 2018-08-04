@@ -160,15 +160,21 @@ char * getServiceName(uint8_t servID);
  * 
  * \return	Hash-Table wenn OK, sonst NULL
  */
-interStruct ** getInterStructsInit(uint16_t region);
+interStruct ** getInterStructTable(uint16_t region);
+
+/** \brief 	Aktualisiert einen interStruct-Eintrag in der Hash-Table
+ * 
+ * \return	void
+ */
+void setInterStruct(interStruct ** table, uint16_t region, uint16_t id);
 
 /** \brief 	Setzt Region- und Intersection-ID zur IntersectionReferenceID
  * 			zusammen und berechnet den hash
  * 
  * \param[in]	region	Dienstanbieter / Verkehrsbetrieb
  * \param[in]	id		KreuzungsID
- * \param[out]	refID	1. 16 Bit -> Anbieter / 2. -> 16 Bit Kreuzung
- * \param[out]	clientSock	Socket des jeweiligen Client-Prozesses
+ * \param[out]	refID	1. 16 Bit -> Anbieter / 2. 16 Bit -> Kreuzung
+ * \param[out]	hash	Berechneter Hash
  * 
  * \return	void
  */

@@ -6,9 +6,21 @@
 #include <xml.h>
 #include <sql.h>
 #include <msq.h>
-#include <intersection.h>
 
 #define MAX_HASH 100
+
+#define INTER_AREA 3000
+
+/** \brief	Abhängig vom Node-Type werden n Segment-Teile berechnet */
+typedef enum segParts {
+	err	= 0,
+	xy1	= 5,
+	xy2	= 10,
+	xy3	= 20,
+	xy4	= 40,
+	xy5	= 80,
+	xy6	= 300
+} segParts;
 
 /** \brief Element für MAP-Nachrichten in Hash-Table */
 typedef struct intersectGeo {
@@ -45,7 +57,7 @@ xmlDocPtr getMessage(int sock);
  * 
  * \return	xmlDocPtr auf xmlDoc einer Nachricht
  */
-int processMAP(xmlDocPtr message, MYSQL *con, intersectGeo ** mapTable, uint8_t test);
+int processMAP(xmlDocPtr message, msqList * clients, uint8_t test);
 
 /** \brief	Verarbeitet SPaT-Nachrichten
  * 			Selektiert Intersection
@@ -55,7 +67,7 @@ int processMAP(xmlDocPtr message, MYSQL *con, intersectGeo ** mapTable, uint8_t 
  * 
  * \return	xmlDocPtr auf xmlDoc einer Nachricht
  */
-int processSPAT(xmlDocPtr message, intersectGeo ** mapTable, msqList * clients, uint8_t test);
+int processSPAT(xmlDocPtr message, msqList * clients, uint8_t test);
 
 /** \brief	Berechnet aus der Regulator- und IntersectionID (jeweils 16 Bit)
  * 			die 32 Bit IntersectionReferenceID zur Verwendung als Hash-Schlüssel
@@ -66,78 +78,17 @@ int processSPAT(xmlDocPtr message, intersectGeo ** mapTable, msqList * clients, 
  */
 uint32_t getReferenceID(xmlDocPtr xmlDoc);
 
-/** \brief	Liefert ein String-Array. Jeder String ist ein Baum ab 'tag'.
+/** \brief	Liefert die Anzahl der Segmente in welche ein Node-Segment unterteilt wird
  * 
- * \param[in] message	Pointer auf ein XML-Dokument
- * \param[in] tag		zu suchender Tag-Name (XPath-Expression)
+ * \param[in] xmlDocNode	zu untersuchender NodeXY
  * 
- * \return	String
- */
-char ** getTree(xmlDocPtr message, char * tag);
+ * \return segParts
+*/
+segParts getSegmentParts(xmlDocPtr xmlNodeDoc);
 
-/** \brief	Ergänzt die Strings im Array mit <?xml version="1.0"?>
- * 
- * \param[in] trees		Bäume
- * 
- * \return	XML-String (beginnend mit <?xml version="1.0"?>)
- */
-char ** getWellFormedXML(char ** trees);
-
-/** \brief	Generiert ein intersectionGeometry-Element für die Hash-Table
- * 
- * \param[in] refID		IntersectionReferenceID
- * \param[in] timestamp	MinuteOfTheYear
- * \param[in] xml		IntersectionGeometry als wohlgformter XML-String
- * 
- * \return	intersectionGeometry-Element
- */
-intersectGeo * getNewGeoElement(uint32_t refID, char * timestamp, char * xml);
-
-/** \brief	Sucht ein intersectionGeometry-Element in der Hash-Table mittels refID
- * 
- * \param[in] refID		IntersectionReferenceID
- * 
- * \return	xmlDocPtr, wenn Element gefunden
- * 			NULL, sonst
- */
-xmlDocPtr getGeoElement(intersectGeo ** table, uint32_t refID);
-
-/** \brief	Einmaliger Aufruf beim Start des Message Manager
- * 			Abfrage der MAP-Informationen auf der DB
- * 
- * \param[in] con	MYSQL connect
- * 
- * \return	intersectionGeometry Hash-Table
- */
-intersectGeo ** getGeoTable(MYSQL *con);
-
-/** \brief	Sucht eine Geometry-Element anhand der refID in der Hash-Table
- * 			Aktualisiert den Eintrag wenn vorhanden oder legt einen neuen an
- * 
- * \param[io] table		intersectionGeometry Hash-Table
- * \param[in] refID		IntersectionReferenceID
- * \param[in] timestamp	MinuteOfTheYear
- * \param[in] xml		IntersectionGeometry als wohlgformter XML-String
- * 
- * \return	void
- */
-void setGeoElement(intersectGeo ** table, uint32_t refID, char * timestamp, char * xml);
-
-/** \brief	Hash-Funktion
- * 
- * \param[in] refID		IntersectionReferenceID
- * 
- * \return	int Hash
- */
-int getHash(uint32_t refID);
-
-/** \brief Speicherfreigabe der IntersectionGeometry-Table
- * 
- * \param[in] ** hashTable	= zu leerende Hash
-  * 
- * \return	void
- */
-void freeGeoTable(intersectGeo ** hashTable);
+void setSegments(MYSQL * dbCon, uint16_t region, uint16_t id, int laneID, 
+				 segParts slices, int nodeWidth, int nodeLong, int nodeLat, 
+				 int offsetX, int offsetY);
 
 
 msqList * msqListAdd(int i, msqList * clients);

@@ -4,6 +4,9 @@
 
 #include <basic.h>
 
+#define XML_TAG "<?xml version=\"1.0\"?>\n"
+#define XML_TAG_LEN 23
+
 /** \brief Setzen der Knoten-Werte innerhalb eines XML-Dokumentes
  * 
  * \param[in] *doc	 		= Pointer des XML-Objektes
@@ -40,3 +43,20 @@ xmlXPathObjectPtr getNodes(xmlDocPtr doc, char * expression);
  * 			NULL im Fehlerfall
  */
 xmlDocPtr getdoc(char *docname);
+
+/** \brief	Ergänzt die Strings im Array mit <?xml version="1.0"?>
+ * 
+ * \param[in] trees		Bäume
+ * 
+ * \return	XML-String (beginnend mit <?xml version="1.0"?>)
+ */
+char ** getWellFormedXML(char ** trees);
+
+/** \brief	Liefert ein String-Array. Jeder String ist ein Baum ab 'tag'.
+ * 
+ * \param[in] message	Pointer auf ein XML-Dokument
+ * \param[in] tag		zu suchender Tag-Name (XPath-Expression)
+ * 
+ * \return	String
+ */
+char ** getTree(xmlDocPtr message, char * tag);

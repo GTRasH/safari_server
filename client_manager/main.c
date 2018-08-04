@@ -86,25 +86,44 @@ int main(void) {
 					sprintf(logText, "[%s]   Message queue registration done - SAFARI started\n",
 							client->name);
 					setLogText(logText, LOG_CLIENT);
-					
-					func = setClientResponse;
-					
-					interTable = getInterStructsInit(1);
-					
+
+					interTable = getInterStructTable(1);
+
 					for (int i = 0; i < MAX_HASH; i++) {
-						if (interTable[i] != NULL) {
+						if (interTable[i] == NULL) 
+							printf("interTable[%i] == NULL\n", i);
+						else {
 							interPtr = interTable[i];
 							while (interPtr != NULL) {
-								printf("interPtr->refID = %i\n",
-								interPtr->refID);
+								printf("interPtr->refID = %i\n", interPtr->refID);
+								lanePtr = interPtr->lanes;
+								while (lanePtr != NULL) {
+									printf ("lanePtr->loc.longitude = %i\n",
+											lanePtr->pos.longitude);
+									segPtr = lanePtr->segments;
+									while (segPtr != NULL) {
+										printf ("segPtr->borders.maxLong = %i\n",
+											segPtr->borders.maxLong);
+										segPtr = segPtr->next;
+									}
+									printf("Segment-Verarbeitung abgeschlossen\n");
+									lanePtr = lanePtr->next;
+								}
+								printf("Lane-Verarbeitung abgeschlossen\n");
+								printf("Gehe zum nächsten Intersection Element\n");
 								interPtr = interPtr->next;
 							}
+							printf("Intersection-Verarbeitung abgeschlossen\n");
 						}
 					}
+					printf("Intersection Ausgabe abgeschlossen\n");
+					
+					func = setClientResponse;
 					
 					while (1) {
 						res = msgrcv(clientID, &s2c, MSQ_LEN, 0, IPC_NOWAIT);
 						if (res != -1) {
+							printf("Nachricht vom Message Manager erhalten!\n");
 							if (getClientResponse(sockClient, MAX_RUN, func, s2c.message, client)) {
 								sprintf(logText, "[%s]   Client responses %i times with invalid data\n",
 										client->name, MAX_RUN);
