@@ -1,26 +1,20 @@
 
 #include <sys/shm.h>
-
+#include <math.h>
 #include <basic.h>
 #include <socket.h>
 #include <xml.h>
 #include <sql.h>
 #include <msq.h>
 
-#define MAX_HASH 100
+/** \brief	Kreuzungsbereich in cm gemessen ab dem Mittelpunkt */
+#define INTER_AREA 30000
 
-#define INTER_AREA 3000
+/** \brief	Mittlerer Erdradius nach WGS-84 in cm */
+#define WGS84_RAD 637100080
 
-/** \brief	Abhängig vom Node-Type werden n Segment-Teile berechnet */
-typedef enum segParts {
-	err	= 0,
-	xy1	= 5,
-	xy2	= 10,
-	xy3	= 20,
-	xy4	= 40,
-	xy5	= 80,
-	xy6	= 300
-} segParts;
+/** \brief	Breite der Teilstücke eines Lane-Segments in cm */
+#define SEG_PART 200
 
 /** \brief Element für MAP-Nachrichten in Hash-Table */
 typedef struct intersectGeo {
@@ -78,17 +72,17 @@ int processSPAT(xmlDocPtr message, msqList * clients, uint8_t test);
  */
 uint32_t getReferenceID(xmlDocPtr xmlDoc);
 
-/** \brief	Liefert die Anzahl der Segmente in welche ein Node-Segment unterteilt wird
+/** \brief	Berechnet 1/100 µGrad in Abhängigkeit der Höhe
  * 
- * \param[in] xmlDocNode	zu untersuchender NodeXY
+ * \param[in] elevation	Geographische Höhe der Kreuzung
  * 
- * \return segParts
+ * \return 1/100 µGrad
 */
-segParts getSegmentParts(xmlDocPtr xmlNodeDoc);
+double get100thMicroDegree(int elevation);
 
 void setSegments(MYSQL * dbCon, uint16_t region, uint16_t id, int laneID, 
-				 segParts slices, int nodeWidth, int nodeLong, int nodeLat, 
-				 int offsetX, int offsetY);
+				 int segID, double microDegree, int nodeWidth, int nodeLong, 
+				 int nodeLat, int offsetX, int offsetY);
 
 
 msqList * msqListAdd(int i, msqList * clients);

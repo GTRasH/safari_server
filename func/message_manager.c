@@ -17,14 +17,16 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 	// MYSQL_RES * res;
 	xmlDocPtr xmlInterDoc, xmlLaneDoc, xmlNodeDoc;
 	char ** strRegion, ** strId, ** strLaneId, ** interLong, ** interLat,
-		 ** strLaneWidth, ** strNodeWidth, ** strNodeLong, ** strNodeLat, 
-		 ** temp, ** xmlInter, ** xmlLane, ** xmlNodes, ** strOffsetX, ** strOffsetY;
-	int interMaxLong, interMaxLat, interMinLong, interMinLat, laneId,
-		laneWidth, nodeWidth, nodeLong, nodeLat, offsetX, offsetY;
+		 ** strElevation, ** strLaneWidth, ** strNodeWidth,
+		 ** strNodeLong, ** strNodeLat, ** temp, ** xmlInter, ** xmlLane, 
+		 ** xmlNodes, ** strOffsetX, ** strOffsetY;
+	int elevation, interOffset, interMaxLong, interMaxLat,
+		interMinLong, interMinLat, laneId, laneWidth, nodeWidth, nodeLong,
+		nodeLat, offsetX, offsetY;
+	double microDegree;
 	uint16_t region, id;
 	uint8_t update = 0;
 	char query[Q_BUF], interUpdate[MSG_BUF], clientNotify[MSG_BUF];
-	segParts slices;
 	msqList * clientPtr;
 	msqElement s2c;
 	MYSQL * dbCon = sqlConnect("safari");
@@ -47,6 +49,7 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 		strId		 = getNodeValue(xmlInterDoc, "//id/id");
 		interLong	 = getNodeValue(xmlInterDoc, "//refPoint/long");
 		interLat	 = getNodeValue(xmlInterDoc, "//refPoint/lat");
+		strElevation = getNodeValue(xmlInterDoc, "//refPoint/elevation");
 		strLaneWidth = getNodeValue(xmlInterDoc, "//laneWidth");
 		// IntersectionReferenceID oder refPoint nicht gefunden -> nächste Intersection
 		if (strRegion == NULL || strId == NULL || interLong == NULL 
@@ -63,10 +66,15 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 		region		 = (uint16_t)strtol(*(strRegion),NULL,10);
 		id			 = (uint16_t)strtol(*(strId),NULL,10);
 		laneWidth	 = (int)strtol(*(strLaneWidth),NULL,10);
-		interMaxLong = (int)strtol(*(interLong),NULL,10) + INTER_AREA;
-		interMaxLat	 = (int)strtol(*(interLat),NULL,10) + INTER_AREA;
-		interMinLong = (int)strtol(*(interLong),NULL,10) - INTER_AREA;
-		interMinLat  = (int)strtol(*(interLat),NULL,10) - INTER_AREA;
+		elevation	 = (strElevation == NULL) ? 0 :
+						(int)strtol(*(strElevation),NULL,10);
+		microDegree	 = get100thMicroDegree(elevation);
+		interOffset	 = microDegree*INTER_AREA;
+		interMaxLong = (int)strtol(*(interLong),NULL,10) + interOffset;
+		interMaxLat	 = (int)strtol(*(interLat),NULL,10) + interOffset;
+		interMinLong = (int)strtol(*(interLong),NULL,10) - interOffset;
+		interMinLat  = (int)strtol(*(interLat),NULL,10) - interOffset;
+		
 		// DB aktualisieren
 		sprintf	(query, 
 				"INSERT INTO intersections "
@@ -144,10 +152,9 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 				}
 				else
 				{
-					slices		= getSegmentParts(xmlNodeDoc);
 					strOffsetX	= getNodeValue(xmlNodeDoc, "//x");
 					strOffsetY	= getNodeValue(xmlNodeDoc, "//y");
-					if (slices == err || strOffsetX == NULL || strOffsetY == NULL) {
+					if (strOffsetX == NULL || strOffsetY == NULL) {
 						xmlFreeDoc(xmlNodeDoc);
 						freeArray(strOffsetX);
 						freeArray(strOffsetY);
@@ -155,20 +162,20 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 					}
 					offsetX	= (int)strtol(*(strOffsetX), NULL, 0);
 					offsetY	= (int)strtol(*(strOffsetY), NULL, 0);
-					setSegments(dbCon, region, id, laneId, slices, nodeWidth,
-								nodeLong, nodeLat, offsetX, offsetY);
+					setSegments(dbCon, region, id, laneId, k-1, microDegree,
+								nodeWidth, nodeLong, nodeLat, offsetX, offsetY);
 					// neuer Referenzpunkt für den nächsten Node
-					nodeLat  += offsetX;
-					nodeLong += offsetY;
+					nodeLong += (int)(microDegree*offsetX);
+					nodeLat	 += (int)(microDegree*offsetY);
 					freeArray(strOffsetX);
 					freeArray(strOffsetY);
 				}
+				freeArray(strNodeWidth);
 				xmlFreeDoc(xmlNodeDoc);
 			}
 			xmlFreeDoc(xmlLaneDoc);
 			freeArray(strLaneId);
 			freeArray(xmlNodes);
-		//	freeArray(strLaneWidth);
 		}
 		xmlFreeDoc(xmlInterDoc);
 		freeArray(xmlLane);
@@ -179,17 +186,12 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 	}
 	// Benachrichtigung der Clients
 	if (update == 1) {
-		clientPtr = clients;
-		strcat(clientNotify, "</mapUpdate>");
+		clientPtr	= clients;
 		s2c.prio	= 2;
+		strcat(clientNotify, "</mapUpdate>");
 		sprintf(s2c.message, "%s", clientNotify);
 		while (clientPtr != NULL) {
-			if ((msgsnd(clientPtr->id, &s2c, MSQ_LEN, 0)) < 0)
-				printf ("Konnte Nachricht an Client MQ %d nicht zustellen\n",
-						clientPtr->id);
-			else
-				printf ("Nachricht an Client MQ %d zugestellt\n",
-						clientPtr->id);
+			msgsnd(clientPtr->id, &s2c, MSQ_LEN, 0);
 			clientPtr = clientPtr->next;
 		}
 	}
@@ -238,9 +240,7 @@ int processSPAT(xmlDocPtr message, msqList * clients, uint8_t test) {
 		s2c.prio	= 2;
 		sprintf(s2c.message, "%s", *(refPoint));
 		while (clientPtr != NULL) {
-			
 			res = msgsnd(clientPtr->id, &s2c, MSQ_LEN, 0);
-      
 			if (res < 0)
 				printf ("Konnte Nachricht an Client MQ %d nicht zustellen\n",
 						clientPtr->id);
@@ -342,52 +342,106 @@ msqList * setMsqClients(int serverID, msqList * clients) {
 	return clients;
 }
 
-segParts getSegmentParts(xmlDocPtr xmlNodeDoc) {
-	xmlXPathObjectPtr nodeCheck;
-	segParts result;
-	nodeCheck = getNodes(xmlNodeDoc, "//node-XY1");
-	if (nodeCheck != NULL) {
-		result = xy1;
-		xmlXPathFreeObject(nodeCheck);
-	} else {
-		nodeCheck = getNodes(xmlNodeDoc, "//node-XY2");
-		if (nodeCheck != NULL) {
-			result = xy2;
-			xmlXPathFreeObject(nodeCheck);
-		} else {
-			nodeCheck = getNodes(xmlNodeDoc, "//node-XY3");
-			if (nodeCheck != NULL) {
-				result = xy3;
-				xmlXPathFreeObject(nodeCheck);
-			} else {
-				nodeCheck = getNodes(xmlNodeDoc, "//node-XY4");
-				if (nodeCheck != NULL) {
-					result = xy4;
-					xmlXPathFreeObject(nodeCheck);
-				} else {
-					nodeCheck = getNodes(xmlNodeDoc, "//node-XY5");
-					if (nodeCheck != NULL) {
-						result = xy5;
-						xmlXPathFreeObject(nodeCheck);
-					} else {
-						nodeCheck = getNodes(xmlNodeDoc, "//node-XY6");
-						if (nodeCheck != NULL) {
-							result = xy6;
-							xmlXPathFreeObject(nodeCheck);
-						} else {
-							xmlXPathFreeObject(nodeCheck);
-							result = err;
-						}
-					}
-				}
+void setSegments(MYSQL * dbCon, uint16_t region, uint16_t id, int laneID, 
+				int segID, double microDegree, int nodeWidth, int nodeLong,
+				int nodeLat, int offsetX, int offsetY) {
+	
+	int degSegWidth, degSegLength, segParts, maxLong, maxLat, minLong, minLat;
+	uint8_t offsetA, offsetB, offsetC;
+	double segLength, cosAlpha;
+	char query[Q_BUF];
+	// Segmentlänge in cm
+	segLength	 = sqrt((offsetX*offsetX)+(offsetY*offsetY));
+	// Umrechnung cm in 1/10 µGrad
+	degSegWidth	 = (int)(microDegree*nodeWidth)/10;
+	degSegLength = (int)(microDegree*segLength)/10;
+	// Anzahl der Teilstücke eines Segments (Diagonale 2 m)
+	// sollte das Segment < 2 m sein, wird ein Teilstück gebildet
+	if ((segParts = (int)ceil(segLength/SEG_PART)) == 0)
+		segParts = 1;
+	degSegLength /= segParts;
+	// 0° <= Segment-Winkel < 90°
+	if (offsetX > 0 && offsetY >= 0) {
+		// 0° <= Segment-Winkel < 45°
+		if ((cosAlpha = offsetX/segLength) > M_SQRT1_2) {
+			offsetA = (uint8_t)ceil(cosAlpha * degSegLength);
+			offsetB = (uint8_t)ceil(sqrt((degSegLength*degSegLength)-(offsetA*offsetA)));
+			offsetC = (uint8_t)ceil(degSegWidth/cosAlpha);
+			// Grenzen für jedes Teilstück bestimmen
+			/*
+			if (skip > 0) {
+				if (segParts <= skip)
+					return;
+				maxLat	= maxLat + (int)ceil(offsetC/2.0) + skip * offsetB;
+				maxLong	= nodeLong + skip * offsetA;
+				*
+			}
+			*/
+			maxLat	= nodeLat + (int)ceil(offsetC/2.0);
+			maxLong	= nodeLong;
+			for (int i = 0; i < segParts; i++) {
+				maxLat	= maxLat + offsetB;
+				minLat	= maxLat - (offsetB + offsetC);
+				minLong	= maxLong;
+				maxLong	= minLong + offsetA;
+				sprintf(query,
+					"INSERT INTO segments "
+					"(region, id, laneID, segID, partID, maxLong, maxLat, minLong, minLat) "
+					"VALUES ('%u', '%u', '%i', '%i', '%i', '%i', '%i', '%i', '%i') "
+					"ON DUPLICATE KEY UPDATE maxLong='%i', maxLat='%i', minLong='%i', minLat='%i'",
+					region, id, laneID, segID, i, maxLong, maxLat, minLong, minLat,
+					maxLong, maxLat, minLong, minLat
+				);
+				if (mysql_query(dbCon, query))
+						sqlError(dbCon);
+			}
+		}
+		// 45° <= Segment-Winkel < 90°
+		else {
+			cosAlpha = 1.0 - cosAlpha;
+			offsetA  = (uint8_t)ceil(cosAlpha * degSegLength);
+			offsetB  = (uint8_t)ceil(sqrt((degSegLength*degSegLength)-(offsetA*offsetA)));
+			offsetC  = (uint8_t)ceil(degSegWidth/cosAlpha);
+			maxLat	 = nodeLat;
+			maxLong	 = nodeLong + (int)ceil(offsetC/2.0);
+			for (int i = 0; i < segParts; i++) {
+				maxLong	= maxLong + offsetB;
+				minLong	= maxLong - (offsetB + offsetC);
+				minLat	= maxLat;
+				maxLat	= minLat + offsetA;
+				sprintf(query,
+					"INSERT INTO segments "
+					"(region, id, laneID, segID, partID, maxLong, maxLat, minLong, minLat) "
+					"VALUES ('%u', '%u', '%i', '%i', '%i', '%i', '%i', '%i', '%i') "
+					"ON DUPLICATE KEY UPDATE maxLong='%i', maxLat='%i', minLong='%i', minLat='%i'",
+					region, id, laneID, segID, i, maxLong, maxLat, minLong, minLat,
+					maxLong, maxLat, minLong, minLat
+				);
+				if (mysql_query(dbCon, query))
+						sqlError(dbCon);
 			}
 		}
 	}
-	return result;
+	// 90° <= Segment-Winkel < 180°
+	else if (offsetX <= 0 && offsetY > 0) {
+		printf("90° <= Segment-Winkel < 180°\n");
+		
+	}
+	// 180° <= Segment-Winkel < 270°
+	else if (offsetX < 0 && offsetY <= 0) {
+		printf("180° <= Segment-Winkel < 270°\n");
+		
+	}
+	// 270° <= Segment-Winkel < 360°
+	else if (offsetX >= 0 && offsetY < 0) {
+		printf("270° <= Segment-Winkel < 360°\n");
+		
+	}
 }
 
-void setSegments(MYSQL * dbCon, uint16_t region, uint16_t id, int laneID, 
-				segParts slices, int nodeWith, int nodeLong, int nodeLat, 
-				int offsetX, int offsetY) {
-	printf("Jetzt geht's ab ^^\n");
+double get100thMicroDegree(int elevation) {
+	// Radiant für 1 cm
+	double degree = asin(10000000.0/(WGS84_RAD + elevation * 10));
+	// Umrechnung in 1/100 µGrad
+	return (360/(2*M_PI))*degree;
 }
