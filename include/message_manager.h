@@ -16,6 +16,9 @@
 /** \brief	Breite der Teilstücke eines Lane-Segments in cm */
 #define SEG_PART 200
 
+/** \brief	Teilstücke die ab der Stopp-Linie übersprungen werden */
+#define SEG_SKIP 2
+
 /** \brief Element für MAP-Nachrichten in Hash-Table */
 typedef struct intersectGeo {
 	struct intersectGeo *next;
@@ -80,9 +83,9 @@ uint32_t getReferenceID(xmlDocPtr xmlDoc);
 */
 double get100thMicroDegree(int elevation);
 
-void setSegments(MYSQL * dbCon, uint16_t region, uint16_t id, int laneID, 
-				 int segID, double microDegree, int nodeWidth, int nodeLong, 
-				 int nodeLat, int offsetX, int offsetY);
+void setSegments(MYSQL * dbCon, uint16_t region, uint16_t id, uint8_t laneID, 
+				uint8_t nodeID, double microDegree, uint16_t nodeWidth, uint8_t skip,
+				int nodeLong, int nodeLat, int16_t offsetX, int16_t offsetY);
 
 
 msqList * msqListAdd(int i, msqList * clients);
