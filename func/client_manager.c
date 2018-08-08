@@ -99,8 +99,8 @@ int getClientResponse(	int sock, int retries,
 	// sende den Request bis zu `retries` Mal
 	do {
 		// TESTING
-		printf ("# # #   SENDE NACHRICHT AN CLIENT   # # #\n%s\n",
-				message);
+		//printf ("# # #   SENDE NACHRICHT AN CLIENT   # # #\n%s\n",
+		//		message);
 		setSocketContent(sock, message, msgSize);
 		resp = getSocketContent(sock);
 		if (resp == NULL) {
@@ -109,8 +109,8 @@ int getClientResponse(	int sock, int retries,
 			break;
 		}
 		// TESTING
-		printf ("# # #   NACHRICHT VON CLIENT EMPFANGEN   # # #\n%s\n",
-				resp);
+		//printf ("# # #   NACHRICHT VON CLIENT EMPFANGEN   # # #\n%s\n",
+		//		resp);
 		result = func(resp, client);
 		free(resp);
 	} while (result && --retries);
@@ -346,9 +346,10 @@ char * getServiceName(uint8_t servID) {
 }
 
 void getHash(uint16_t region, uint16_t id, uint32_t * refID, uint8_t * hash) {
-	region 	<<= 16;
-	*refID 	= region + id;
-	*hash	= *refID % MAX_HASH;
+	*refID	 = region;
+	*refID <<= 16;
+	*refID  += id;
+	*hash	 = *refID % MAX_HASH;
 }
 
 interStruct ** getInterStructTable(uint16_t region) {
@@ -392,6 +393,7 @@ interStruct ** getInterStructTable(uint16_t region) {
 		inter->borders.maxLat	= (int)strtol(rowInter[2], NULL, 10);
 		inter->borders.minLong	= (int)strtol(rowInter[3], NULL, 10);
 		inter->borders.minLat	= (int)strtol(rowInter[4], NULL, 10);
+		printf("inter->borders.minLat = %i\n", inter->borders.minLat);
 		// Kollisions-Abfrage
 		if (table[hash] == NULL)
 			table[hash] = inter;

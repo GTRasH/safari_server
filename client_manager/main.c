@@ -87,36 +87,8 @@ int main(void) {
 							client->name);
 					setLogText(logText, LOG_CLIENT);
 
-					interTable = getInterStructTable(1);
-
-					for (int i = 0; i < MAX_HASH; i++) {
-						if (interTable[i] == NULL) 
-							printf("interTable[%i] == NULL\n", i);
-						else {
-							interPtr = interTable[i];
-							while (interPtr != NULL) {
-								printf("interPtr->refID = %i\n", interPtr->refID);
-								lanePtr = interPtr->lanes;
-								while (lanePtr != NULL) {
-									printf ("lanePtr->loc.longitude = %i\n",
-											lanePtr->pos.longitude);
-									segPtr = lanePtr->segments;
-									while (segPtr != NULL) {
-										printf ("segPtr->borders.maxLong = %i\n",
-											segPtr->borders.maxLong);
-										segPtr = segPtr->next;
-									}
-									printf("Segment-Verarbeitung abgeschlossen\n");
-									lanePtr = lanePtr->next;
-								}
-								printf("Lane-Verarbeitung abgeschlossen\n");
-								printf("Gehe zum nächsten Intersection Element\n");
-								interPtr = interPtr->next;
-							}
-							printf("Intersection-Verarbeitung abgeschlossen\n");
-						}
-					}
-					printf("Intersection Ausgabe abgeschlossen\n");
+					// Übernahme der Region-ID aus dem Client-Response
+					interTable = getInterStructTable(0);
 					
 					func = setClientResponse;
 					
@@ -124,6 +96,43 @@ int main(void) {
 						res = msgrcv(clientID, &s2c, MSQ_LEN, 0, IPC_NOWAIT);
 						if (res != -1) {
 							printf("Nachricht vom Message Manager erhalten!\n");
+							
+							// getHash(region, id, &refID, &hash);
+							interPtr = interTable[0];
+							while (interPtr != NULL) {
+								// Kreuzung in der Hash-Table gefunden
+								if (interPtr->refID == 0) {
+									// User befindet sich im Kreuzungsbereich
+									if (client->pos.latitude <= interPtr->borders.maxLat &&
+										client->pos.latitude >= interPtr->borders.minLat &&
+										client->pos.longitude <= interPtr->borders.maxLong &&
+										client->pos.longitude >= interPtr->borders.minLong)
+										{
+										printf("Client befindet sich im Bereich der interPtr->refID = %i\n", interPtr->refID);
+										// Durchlaufe die Lanes
+										lanePtr = interPtr->lanes;
+										while (lanePtr != NULL) {
+											segPtr = lanePtr->segments;
+											// Prüfe die Segmente
+											while (segPtr != NULL) {
+												if (client->pos.latitude <= segPtr->borders.maxLat &&
+													client->pos.latitude >= segPtr->borders.minLat &&
+													client->pos.longitude <= segPtr->borders.maxLong &&
+													client->pos.longitude >= segPtr->borders.minLong)
+													{
+														printf("Client befindet sich auf Lane %i\n", lanePtr->laneID);
+														// Nachricht vorbereiten
+													}
+													segPtr = segPtr->next;
+											}
+											lanePtr = lanePtr->next;
+										}
+										interPtr = interPtr->next;
+									}
+								}
+							}
+							
+							
 							if (getClientResponse(sockClient, MAX_RUN, func, s2c.message, client)) {
 								sprintf(logText, "[%s]   Client responses %i times with invalid data\n",
 										client->name, MAX_RUN);

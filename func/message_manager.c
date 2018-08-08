@@ -21,10 +21,10 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 		 ** strNodeLong, ** strNodeLat, ** temp, ** xmlInter, ** xmlLane, 
 		 ** xmlNodes, ** strOffsetX, ** strOffsetY;
 	int elevation, interOffset, interMaxLong, interMaxLat, interMinLong,
-		interMinLat, nodeLong, nodeLat;
+		interMinLat, nodeLong, nodeLat, maxLong, maxLat, minLong, minLat;
 	double microDegree;
 	uint16_t region, id, laneWidth, nodeWidth, offsetX, offsetY;
-	uint8_t laneId, segPartSkip, update = 0;
+	uint8_t laneID, segID, nodeID, segPartSkip, update = 0;
 	char query[Q_BUF], interUpdate[MSG_BUF], clientNotify[MSG_BUF];
 	msqList * clientPtr;
 	msqElement s2c;
@@ -37,6 +37,19 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 	// Jedes Element von geometry ist ein gültiger XML-String
 	if ((temp = getTree(message, "//IntersectionGeometry")) == NULL)
 		return 1;
+
+	MYSQL_STMT * stmt;
+	MYSQL_BIND bind[13];
+	// Datenbank Update vorbereiten
+	char * qStmt =	"INSERT INTO segments "
+					"(region, id, laneID, nodeID, segID, maxLong, maxLat, minLong, minLat) "
+					"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) "
+					"ON DUPLICATE KEY UPDATE maxLong=?, maxLat=?, minLong=?, minLat=?";
+	stmt = mysql_stmt_init(dbCon);
+	mysql_stmt_prepare(stmt, qStmt, strlen(qStmt));
+	memset(bind, 0, sizeof(bind));
+	setParamBind(bind, &region, &id, &laneID, &nodeID, &segID, &maxLong, &maxLat, &minLong, &minLat);
+	mysql_stmt_bind_param(stmt, bind);
 
 	xmlInter = getWellFormedXML(temp);
 	freeArray(temp);
@@ -113,7 +126,8 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 				freeArray(strLaneId);
 				continue;
 			}
-			laneId	 = (uint8_t)strtol(*(strLaneId),NULL,10);
+			laneID	 = (uint8_t)strtol(*(strLaneId),NULL,10);
+			segID	 = 0;
 			xmlNodes = getWellFormedXML(temp);
 			freeArray(temp);
 			for (int k = 0; *(xmlNodes+k); ++k) {
@@ -141,7 +155,7 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 							"(region, id, laneID, longitude, latitude) "
 							"VALUES ('%u', '%u', '%u', '%i', '%i') "
 							"ON DUPLICATE KEY UPDATE longitude = '%i', "
-							"latitude = '%i'", region, id, laneId, 
+							"latitude = '%i'", region, id, laneID, 
 							nodeLong, nodeLat, nodeLong, nodeLat);
 							
 					if (mysql_query(dbCon, query))
@@ -161,7 +175,7 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 					}
 					offsetX	= (int)strtol(*(strOffsetX), NULL, 0);
 					offsetY	= (int)strtol(*(strOffsetY), NULL, 0);
-					setSegments(dbCon, region, id, laneId, (uint8_t)k-1,
+					setSegments(stmt, &segID, &maxLong, &maxLat, &minLong, &minLat,
 								microDegree, nodeWidth, segPartSkip, 
 								nodeLong, nodeLat, offsetX, offsetY);
 					// neuer Referenzpunkt für den nächsten Node
@@ -196,6 +210,7 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 			clientPtr = clientPtr->next;
 		}
 	}
+	mysql_stmt_close(stmt);
 	mysql_close(dbCon);
 	freeArray(xmlInter);
 	return 0;
@@ -343,198 +358,262 @@ msqList * setMsqClients(int serverID, msqList * clients) {
 	return clients;
 }
 
-void setSegments(MYSQL * dbCon, uint16_t region, uint16_t id, uint8_t laneID, 
-				uint8_t nodeID, double microDegree, uint16_t nodeWidth, uint8_t skip,
-				int nodeLong, int nodeLat, int16_t offsetX, int16_t offsetY) {
+void setSegments(MYSQL_STMT * stmt, uint8_t * segID, int * maxLong, 
+				 int * maxLat, int * minLong, int * minLat, double microDeg, 
+				 uint16_t laneWidth, uint8_t skip, int nodeLong, int nodeLat, 
+				 int16_t offsetX, int16_t offsetY) {
 	
-	int degSegWidth, degSegLength, segParts, maxLong, maxLat, minLong, minLat;
+	uint16_t degLaneWidth, degNodeGap, segments;
 	uint8_t offsetA, offsetB, offsetC;
-	double segLength, cosAlpha;
-	char query[Q_BUF];
-	// Segmentlänge in cm
-	segLength	 = sqrt((offsetX*offsetX)+(offsetY*offsetY));
+	double nodeGap, cos;
+	
+	// Strecke zwischen Bezugs- und Offset-Node in cm
+	nodeGap	 	 = sqrt((offsetX*offsetX)+(offsetY*offsetY));
 	// Umrechnung cm in 1/10 µGrad
-	degSegWidth	 = (int)(microDegree*nodeWidth)/10;
-	degSegLength = (int)(microDegree*segLength)/10;
-	// Anzahl der Teilstücke eines Segments
-	// sollte das Segment < SEG_PART sein, wird ein Teilstück gebildet
-	if ((segParts = (int)ceil(segLength/SEG_PART)) == 0)
-		segParts = 1;
+	degLaneWidth = (uint16_t)(microDeg*laneWidth)/100;
+	degNodeGap	 = (uint16_t)(microDeg*nodeGap)/100;
+	// Anzahl der Teilstücke der Strecke zwischen Bezugs- und Offset-Node
+	// Sollte das Segment < SEG_PART sein, wird ein Teilstück gebildet.
+	if ((segments = (uint16_t)ceil(nodeGap/SEG_PART)) == 0)
+		segments = 1;
 	// Der erste Lane-Abschnitt ist zu kurz und wird übersprungen
-	if (segParts <= skip)
+	if (segments <= skip)
 		return;
 	// Teilstücke in 1/10 µGrad
-	degSegLength /= segParts;
-	// Absoluter Winkel zwischen Lane-Segment-Ausrichtung und Abszisse
-	cosAlpha	  = abs(offsetX)/segLength;
+	degNodeGap /= segments;
+	segments -= skip;
 	// 0° <= Segment-Winkel < 90°
 	if (offsetX > 0 && offsetY >= 0) {
 		// 0° <= Segment-Winkel < 45°
-		if (cosAlpha > M_SQRT1_2) {
-			offsetA = (uint8_t)ceil(cosAlpha * degSegLength);
-			offsetB = (uint8_t)ceil(sqrt((degSegLength*degSegLength)-(offsetA*offsetA)));
-			offsetC = (uint8_t)ceil(degSegWidth/cosAlpha);
+		if ((cos = offsetX/nodeGap) > M_SQRT1_2) {
+			setOffsets(&offsetA, &offsetB, &offsetC, cos, degLaneWidth, degNodeGap);
 			// Grenzen für jedes Teilstück bestimmen
-			maxLat	= nodeLat + (int)ceil(offsetC/2.0) + skip * offsetB;
-			maxLong	= nodeLong + skip * offsetA;
-			for (int i = 0; i < segParts; i++) {
-				maxLat	= maxLat + offsetB;
-				minLat	= maxLat - (offsetB + offsetC);
-				minLong	= maxLong;
-				maxLong	= minLong + offsetA;
-				sprintf(query,
-					"INSERT INTO segments "
-					"(region, id, laneID, segID, partID, maxLong, maxLat, minLong, minLat) "
-					"VALUES ('%u', '%u', '%u', '%u', '%i', '%i', '%i', '%i', '%i') "
-					"ON DUPLICATE KEY UPDATE maxLong='%i', maxLat='%i', minLong='%i', minLat='%i'",
-					region, id, laneID, nodeID, i, maxLong, maxLat, minLong, minLat,
-					maxLong, maxLat, minLong, minLat
-				);
-				if (mysql_query(dbCon, query))
-						sqlError(dbCon);
+			*maxLat  = nodeLat + (int)ceil(offsetC/2.0) + skip * offsetB;
+			*maxLong = nodeLong + skip * offsetA;
+			while (*segID < segments) {
+				*segID	+= 1;
+				*maxLat	 = *maxLat + offsetB;
+				*minLat	 = *maxLat - (offsetB + offsetC);
+				*minLong = *maxLong;
+				*maxLong = *minLong + offsetA;
+				mysql_stmt_execute(stmt);
 			}
 		}
 		// 45° <= Segment-Winkel < 90°
 		else {
-			cosAlpha = 1.0 - cosAlpha;
-			offsetA  = (uint8_t)ceil(cosAlpha * degSegLength);
-			offsetB  = (uint8_t)ceil(sqrt((degSegLength*degSegLength)-(offsetA*offsetA)));
-			offsetC  = (uint8_t)ceil(degSegWidth/cosAlpha);
-			maxLat	 = nodeLat + skip * offsetA;
-			maxLong	 = nodeLong + (int)ceil(offsetC/2.0) + skip * offsetB;
-			for (int i = 0; i < segParts; i++) {
-				maxLong	= maxLong + offsetB;
-				minLong	= maxLong - (offsetB + offsetC);
-				minLat	= maxLat;
-				maxLat	= minLat + offsetA;
-				sprintf(query,
-					"INSERT INTO segments "
-					"(region, id, laneID, segID, partID, maxLong, maxLat, minLong, minLat) "
-					"VALUES ('%u', '%u', '%u', '%u', '%i', '%i', '%i', '%i', '%i') "
-					"ON DUPLICATE KEY UPDATE maxLong='%i', maxLat='%i', minLong='%i', minLat='%i'",
-					region, id, laneID, nodeID, i, maxLong, maxLat, minLong, minLat,
-					maxLong, maxLat, minLong, minLat
-				);
-				if (mysql_query(dbCon, query))
-						sqlError(dbCon);
+			// Winkel zwischen Lane-Segment-Ausrichtung und Ordinate
+			cos = offsetY/nodeGap;
+			setOffsets(&offsetA, &offsetB, &offsetC, cos, degLaneWidth, degNodeGap);
+			*maxLong = nodeLong + (int)ceil(offsetC/2.0) + skip * offsetB;
+			*maxLat	 = nodeLat + skip * offsetA;
+			while (*segID < segments) {
+				*segID	+= 1;
+				*maxLong = *maxLong + offsetB;
+				*minLong = *maxLong - (offsetB + offsetC);
+				*minLat	 = *maxLat;
+				*maxLat	 = *minLat + offsetA;
+				mysql_stmt_execute(stmt);
 			}
 		}
 	}
 	// 90° <= Segment-Winkel < 180°
 	else if (offsetX <= 0 && offsetY > 0) {
 		// 90° <= Segment-Winkel < 135°
-		if (cosAlpha < M_SQRT1_2) {
-			cosAlpha = 1 - cosAlpha;
-			offsetA  = (uint8_t)ceil(cosAlpha * degSegLength);
-			offsetB  = (uint8_t)ceil(sqrt((degSegLength*degSegLength)-(offsetA*offsetA)));
-			offsetC  = (uint8_t)ceil(degSegWidth/cosAlpha);
-			maxLat	 = nodeLat + skip * offsetA;
-			minLong	 = nodeLong - ((int)ceil(offsetC/2.0) + skip * offsetB);
-			for (int i = 0; i < segParts; i++) {
-				minLat	= maxLat;
-				maxLat	= minLat + offsetA;
-				minLong	= minLong - offsetB;
-				maxLong	= minLong + offsetB + offsetC;
-				sprintf(query,
-					"INSERT INTO segments "
-					"(region, id, laneID, segID, partID, maxLong, maxLat, minLong, minLat) "
-					"VALUES ('%u', '%u', '%u', '%u', '%i', '%i', '%i', '%i', '%i') "
-					"ON DUPLICATE KEY UPDATE maxLong='%i', maxLat='%i', minLong='%i', minLat='%i'",
-					region, id, laneID, nodeID, i, maxLong, maxLat, minLong, minLat,
-					maxLong, maxLat, minLong, minLat
-				);
-				if (mysql_query(dbCon, query))
-						sqlError(dbCon);
+		if ((cos = abs(offsetX)/nodeGap) < M_SQRT1_2) {
+			cos = offsetY/nodeGap;
+			setOffsets(&offsetA, &offsetB, &offsetC, cos, degLaneWidth, degNodeGap);
+			*maxLat	 = nodeLat + skip * offsetA;
+			*minLong = nodeLong - ((int)ceil(offsetC/2.0) + skip * offsetB);
+			while (*segID < segments) {
+				*segID	+= 1;
+				*minLat	 = *maxLat;
+				*maxLat	 = *minLat + offsetA;
+				*minLong = *minLong - offsetB;
+				*maxLong = *minLong + offsetB + offsetC;
+				mysql_stmt_execute(stmt);
 			}
 		}
 		// 135° <= Segment-Winkel < 180°
 		else {
-			offsetA  = (uint8_t)ceil(cosAlpha * degSegLength);
-			offsetB  = (uint8_t)ceil(sqrt((degSegLength*degSegLength)-(offsetA*offsetA)));
-			offsetC  = (uint8_t)ceil(degSegWidth/cosAlpha);
-			minLong	 = nodeLong - skip * offsetA;
-			maxLat	 = nodeLat + (int)ceil(offsetC/2.0) + skip * offsetB;
-			for (int i = 0; i < segParts; i++) {
-				maxLong	= minLong;
-				minLong	= maxLong - offsetA;
-				maxLat	= maxLat + offsetB;
-				minLat	= maxLat - (offsetB + offsetC);
-				sprintf(query,
-					"INSERT INTO segments "
-					"(region, id, laneID, segID, partID, maxLong, maxLat, minLong, minLat) "
-					"VALUES ('%u', '%u', '%u', '%u', '%i', '%i', '%i', '%i', '%i') "
-					"ON DUPLICATE KEY UPDATE maxLong='%i', maxLat='%i', minLong='%i', minLat='%i'",
-					region, id, laneID, nodeID, i, maxLong, maxLat, minLong, minLat,
-					maxLong, maxLat, minLong, minLat
-				);
-				if (mysql_query(dbCon, query))
-						sqlError(dbCon);
+			setOffsets(&offsetA, &offsetB, &offsetC, cos, degLaneWidth, degNodeGap);
+			*minLong = nodeLong - skip * offsetA;
+			*maxLat	 = nodeLat + (int)ceil(offsetC/2.0) + skip * offsetB;
+			while (*segID < segments) {
+				*segID	+= 1;
+				*maxLong = *minLong;
+				*minLong = *maxLong - offsetA;
+				*maxLat	 = *maxLat + offsetB;
+				*minLat	 = *maxLat - (offsetB + offsetC);
+				mysql_stmt_execute(stmt);
 			}
 		}
 	}
 	// 180° <= Segment-Winkel < 270°
 	else if (offsetX < 0 && offsetY <= 0) {
 		// 180° <= Segment-Winkel < 225°
-		if (cosAlpha > M_SQRT1_2) {
-			offsetA  = (uint8_t)ceil(cosAlpha * degSegLength);
-			offsetB  = (uint8_t)ceil(sqrt((degSegLength*degSegLength)-(offsetA*offsetA)));
-			offsetC  = (uint8_t)ceil(degSegWidth/cosAlpha);
-			minLat	 = nodeLat - ((int)ceil(offsetC/2.0) + skip * offsetB);
-			minLong	 = nodeLong - skip * offsetA;
-			for (int i = 0; i < segParts; i++) {
-				maxLong	= minLong;
-				minLong	= maxLong - offsetA;
-				minLat	= minLat - offsetB;
-				maxLat	= minLat + offsetB + offsetC;
-				sprintf(query,
-					"INSERT INTO segments "
-					"(region, id, laneID, segID, partID, maxLong, maxLat, minLong, minLat) "
-					"VALUES ('%u', '%u', '%u', '%u', '%i', '%i', '%i', '%i', '%i') "
-					"ON DUPLICATE KEY UPDATE maxLong='%i', maxLat='%i', minLong='%i', minLat='%i'",
-					region, id, laneID, nodeID, i, maxLong, maxLat, minLong, minLat,
-					maxLong, maxLat, minLong, minLat
-				);
-				if (mysql_query(dbCon, query))
-						sqlError(dbCon);
+		if ((cos = abs(offsetX)/nodeGap) > M_SQRT1_2) {
+			setOffsets(&offsetA, &offsetB, &offsetC, cos, degLaneWidth, degNodeGap);
+			*minLat	 = nodeLat - ((int)ceil(offsetC/2.0) + skip * offsetB);
+			*minLong = nodeLong - skip * offsetA;
+			while (*segID < segments) {
+				*segID	+= 1;
+				*maxLong = *minLong;
+				*minLong = *maxLong - offsetA;
+				*minLat	 = *minLat - offsetB;
+				*maxLat	 = *minLat + offsetB + offsetC;
+				mysql_stmt_execute(stmt);
 			}
 				
 		}
 		// 225° <= Segment-Winkel < 270°
 		else {
-			cosAlpha = 1 - cosAlpha;
-			offsetA  = (uint8_t)ceil(cosAlpha * degSegLength);
-			offsetB  = (uint8_t)ceil(sqrt((degSegLength*degSegLength)-(offsetA*offsetA)));
-			offsetC  = (uint8_t)ceil(degSegWidth/cosAlpha);
-			minLong	 = nodeLong - ((int)ceil(offsetC/2.0) + skip * offsetB);
-			minLat	 = nodeLat - skip * offsetA;
-			for (int i = 0; i < segParts; i++) {
-				minLong	= minLong - offsetB;
-				maxLong	= minLong + offsetB + offsetC;
-				maxLat	= minLat;
-				minLat	= maxLat - offsetA;
-				sprintf(query,
-					"INSERT INTO segments "
-					"(region, id, laneID, segID, partID, maxLong, maxLat, minLong, minLat) "
-					"VALUES ('%u', '%u', '%u', '%u', '%i', '%i', '%i', '%i', '%i') "
-					"ON DUPLICATE KEY UPDATE maxLong='%i', maxLat='%i', minLong='%i', minLat='%i'",
-					region, id, laneID, nodeID, i, maxLong, maxLat, minLong, minLat,
-					maxLong, maxLat, minLong, minLat
-				);
-				if (mysql_query(dbCon, query))
-						sqlError(dbCon);
+			cos = abs(offsetY)/nodeGap;
+			setOffsets(&offsetA, &offsetB, &offsetC, cos, degLaneWidth, degNodeGap);
+			*minLong = nodeLong - ((int)ceil(offsetC/2.0) + skip * offsetB);
+			*minLat	 = nodeLat - skip * offsetA;
+			while (*segID < segments) {
+				*segID	+= 1;
+				*minLong = *minLong - offsetB;
+				*maxLong = *minLong + offsetB + offsetC;
+				*maxLat	 = *minLat;
+				*minLat	 = *maxLat - offsetA;
+				mysql_stmt_execute(stmt);
 			}
 		}
 	}
 	// 270° <= Segment-Winkel < 360°
 	else if (offsetX >= 0 && offsetY < 0) {
-		printf("270° <= Segment-Winkel < 360°\n");
-		
+		// 270° <= Segment-Winkel < 315°
+		if ((cos = offsetX/nodeGap) < M_SQRT1_2) {
+			cos = abs(offsetY)/nodeGap;
+			setOffsets(&offsetA, &offsetB, &offsetC, cos, degLaneWidth, degNodeGap);
+			*maxLong = nodeLong + (int)ceil(offsetC/2.0) + skip * offsetB;
+			*minLat	 = nodeLat - skip * offsetA;
+			while (*segID < segments) {
+				*segID	+= 1;
+				*maxLong = *maxLong + offsetB;
+				*minLong = *maxLong - (offsetB + offsetC);
+				*maxLat	 = *minLat;
+				*minLat	 = *maxLat - offsetA;
+				mysql_stmt_execute(stmt);
+			}
+		}
+		// 315° <= Segment-Winkel < 360°
+		else {
+			setOffsets(&offsetA, &offsetB, &offsetC, cos, degLaneWidth, degNodeGap);
+			*minLat	 = nodeLat - ((int)ceil(offsetC/2.0) + skip * offsetB);
+			*maxLong = nodeLong + skip * offsetA;
+			while (*segID < segments) {
+				*segID	+= 1;
+				*minLong = *maxLong;
+				*maxLong = *minLong + offsetA;
+				*minLat	 = *minLat - offsetB;
+				*maxLat	 = *minLat + offsetB + offsetC;
+				mysql_stmt_execute(stmt);
+			}
+		}
 	}
+}
+
+void setParamBind(MYSQL_BIND * bind, uint16_t * region, uint16_t * id, 
+				  uint8_t * laneID, uint8_t * nodeID, uint8_t * segID, 
+				  int * maxLong, int * maxLat, int * minLong, int * minLat) {
+
+	bind[0].buffer_type	 = MYSQL_TYPE_SHORT;
+	bind[0].buffer		 = (char *)region;
+	bind[0].is_null 	 = 0;
+	bind[0].length		 = 0;
+	
+	bind[1].buffer_type	 = MYSQL_TYPE_SHORT;
+	bind[1].buffer		 = (char *)id;
+	bind[1].is_null 	 = 0;
+	bind[1].length		 = 0;
+	
+	bind[2].buffer_type	 = MYSQL_TYPE_TINY;
+	bind[2].buffer		 = (char *)laneID;
+	bind[2].is_null 	 = 0;
+	bind[2].length		 = 0;
+	
+	bind[3].buffer_type	 = MYSQL_TYPE_TINY;
+	bind[3].buffer		 = (char *)nodeID;
+	bind[3].is_null 	 = 0;
+	bind[3].length		 = 0;
+	
+	bind[4].buffer_type	 = MYSQL_TYPE_TINY;
+	bind[4].buffer		 = (char *)segID;
+	bind[4].is_null 	 = 0;
+	bind[4].length		 = 0;
+	
+	bind[5].buffer_type	 = MYSQL_TYPE_LONG;
+	bind[5].buffer		 = (char *)maxLong;
+	bind[5].is_null 	 = 0;
+	bind[5].length		 = 0;
+	
+	bind[6].buffer_type	 = MYSQL_TYPE_LONG;
+	bind[6].buffer		 = (char *)maxLat;
+	bind[6].is_null 	 = 0;
+	bind[6].length		 = 0;
+	
+	bind[7].buffer_type	 = MYSQL_TYPE_LONG;
+	bind[7].buffer		 = (char *)minLong;
+	bind[7].is_null 	 = 0;
+	bind[7].length		 = 0;
+	
+	bind[8].buffer_type	 = MYSQL_TYPE_LONG;
+	bind[8].buffer		 = (char *)minLat;
+	bind[8].is_null 	 = 0;
+	bind[8].length		 = 0;
+	
+	bind[9].buffer_type	 = MYSQL_TYPE_LONG;
+	bind[9].buffer		 = (char *)maxLong;
+	bind[9].is_null 	 = 0;
+	bind[9].length		 = 0;
+	
+	bind[10].buffer_type = MYSQL_TYPE_LONG;
+	bind[10].buffer		 = (char *)maxLat;
+	bind[10].is_null 	 = 0;
+	bind[10].length		 = 0;
+	
+	bind[11].buffer_type = MYSQL_TYPE_LONG;
+	bind[11].buffer		 = (char *)minLong;
+	bind[11].is_null 	 = 0;
+	bind[11].length		 = 0;
+	
+	bind[12].buffer_type = MYSQL_TYPE_LONG;
+	bind[12].buffer		 = (char *)minLat;
+	bind[12].is_null 	 = 0;
+	bind[12].length		 = 0;
+}
+
+void setPrepStmt(char * query, MYSQL_STMT * stmt, MYSQL * dbCon) {
+	stmt = mysql_stmt_init(dbCon);
+	if (!stmt)
+	{
+	  fprintf(stderr, " mysql_stmt_init(), out of memory\n");
+	  exit(0);
+	}
+/*	if (mysql_stmt_prepare(stmt, q, strlen(q)))
+	{
+	  fprintf(stderr, " mysql_stmt_prepare(), INSERT failed\n");
+	  fprintf(stderr, " %s\n", mysql_stmt_error(stmt));
+	  exit(0);
+	}
+	*/
+	fprintf(stdout, " prepare, INSERT successful\n");
+	
+}
+
+void setOffsets(uint8_t * offsetA, uint8_t * offsetB, uint8_t *offsetC,
+				double cos, uint16_t degLaneWidth, uint16_t degNodeGap) {
+	
+	*offsetA = (uint8_t)ceil(cos * degNodeGap);
+	*offsetB = (uint8_t)ceil(sqrt((degNodeGap*degNodeGap)-(*offsetA * *offsetA)));
+	*offsetC = (uint8_t)ceil(degLaneWidth/cos);
 }
 
 double get100thMicroDegree(int elevation) {
 	// Radiant für 1 cm
-	double degree = asin(10000000.0/(WGS84_RAD + elevation * 10));
+	double degree = asin(100000000.0/(WGS84_RAD + elevation * 10));
 	// Umrechnung in 1/100 µGrad
 	return (360/(2*M_PI))*degree;
 }

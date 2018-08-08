@@ -7,8 +7,8 @@
 #include <sql.h>
 #include <msq.h>
 
-/** \brief	Kreuzungsbereich in cm gemessen ab dem Mittelpunkt */
-#define INTER_AREA 30000
+/** \brief	Kreuzungsbereich in m gemessen ab dem Mittelpunkt */
+#define INTER_AREA 300
 
 /** \brief	Mittlerer Erdradius nach WGS-84 in cm */
 #define WGS84_RAD 637100080
@@ -17,7 +17,7 @@
 #define SEG_PART 200
 
 /** \brief	Teilstücke die ab der Stopp-Linie übersprungen werden */
-#define SEG_SKIP 2
+#define SEG_SKIP 0
 
 /** \brief Element für MAP-Nachrichten in Hash-Table */
 typedef struct intersectGeo {
@@ -83,10 +83,20 @@ uint32_t getReferenceID(xmlDocPtr xmlDoc);
 */
 double get100thMicroDegree(int elevation);
 
-void setSegments(MYSQL * dbCon, uint16_t region, uint16_t id, uint8_t laneID, 
-				uint8_t nodeID, double microDegree, uint16_t nodeWidth, uint8_t skip,
-				int nodeLong, int nodeLat, int16_t offsetX, int16_t offsetY);
+/** \brief	Bindet die übergebenen Parameter
+ * 
+*/
+void setParamBind(MYSQL_BIND * bind, uint16_t * region, uint16_t * id, 
+				  uint8_t * laneID, uint8_t * nodeID, uint8_t * segID, 
+				  int * maxLong, int * maxLat, int * minLong, int * minLat);
 
+void setSegments(MYSQL_STMT * stmt, uint8_t * segID, int * maxLong, 
+				 int * maxLat, int * minLong, int * minLat, double microDeg, 
+				 uint16_t laneWidth, uint8_t skip, int nodeLong, int nodeLat, 
+				 int16_t offsetX, int16_t offsetY);
+
+void setOffsets(uint8_t * offsetA, uint8_t * offsetB, uint8_t *offsetC,
+				double cos, uint16_t degLaneWidth, uint16_t degNodeGap);
 
 msqList * msqListAdd(int i, msqList * clients);
 
