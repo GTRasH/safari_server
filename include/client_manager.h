@@ -20,6 +20,9 @@
 #define MAX_RUN 5
 #define MAX_HASH 20
 
+#define SPAT_TAG_START "<SPAT>\n"
+#define SPAT_TAG_END "\n</SPAT>"
+
 
 /** \brief	Intervallgrenzen */
 typedef struct {
@@ -51,7 +54,7 @@ typedef struct laneStruct {
 
 /** \brief	Global Service Area (Kreuzungsbereich) */
 typedef struct interStruct {
-	int refID;
+	unsigned int refID;
 	delimeters borders;
 	laneStruct * lanes;
 	struct interStruct * next;
@@ -90,6 +93,7 @@ typedef struct {
 typedef struct {
 	char name[50];
 	location pos;
+	uint16_t region;
 	uint8_t serviceMask;
 	unsigned int pid;
 	moveType type;
@@ -162,11 +166,11 @@ char * getServiceName(uint8_t servID);
  */
 interStruct ** getInterStructTable(uint16_t region);
 
-/** \brief 	Aktualisiert einen interStruct-Eintrag in der Hash-Table
+/** \brief 	Initialisiert eine interStruct inkl. Abfrage der Lanes und Lane-Segmente
  * 
  * \return	void
  */
-void setInterStruct(interStruct ** table, uint16_t region, uint16_t id);
+interStruct * getInterStruct(MYSQL * db, uint16_t region, uint16_t id);
 
 /** \brief 	Setzt Region- und Intersection-ID zur IntersectionReferenceID
  * 			zusammen und berechnet den hash
@@ -178,4 +182,12 @@ void setInterStruct(interStruct ** table, uint16_t region, uint16_t id);
  * 
  * \return	void
  */
-void getHash(uint16_t region, uint16_t id, uint32_t * refID, uint8_t * hash);
+void getHash(uint16_t region, uint16_t id, unsigned int * refID, uint8_t * hash);
+
+char * getClientMessage(interStruct ** interTable, char * msg, clientStruct * client);
+
+void setInterUpdate(interStruct ** interTable, char ** regions, char ** ids);
+
+void freeInterTable(interStruct ** table);
+
+void freeInterStruct(interStruct * inter);

@@ -33,7 +33,6 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 	// Aktualisierung-Benachrichtung für die Clients vorbereiten
 	strcpy(clientNotify, XML_TAG);
 	strcat(clientNotify, "<mapUpdate>\n");
-	
 	// Jedes Element von geometry ist ein gültiger XML-String
 	if ((temp = getTree(message, "//IntersectionGeometry")) == NULL)
 		return 1;
@@ -68,6 +67,7 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 			|| interLat == NULL || strLaneWidth == NULL) {
 			xmlFreeDoc(xmlInterDoc);
 			freeArray(strLaneWidth);
+			freeArray(strElevation);
 			freeArray(strRegion);
 			freeArray(strId);
 			freeArray(interLong);
@@ -198,12 +198,15 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 		freeArray(strId);
 		freeArray(interLong);
 		freeArray(interLat);
+		freeArray(strLaneWidth);
+		freeArray(strElevation);
 	}
 	// Benachrichtigung der Clients
 	if (update == 1) {
 		clientPtr	= clients;
 		s2c.prio	= 2;
 		strcat(clientNotify, "</mapUpdate>");
+		clientNotify[strlen(clientNotify)] = '\0';
 		sprintf(s2c.message, "%s", clientNotify);
 		while (clientPtr != NULL) {
 			msgsnd(clientPtr->id, &s2c, MSQ_LEN, 0);
@@ -219,7 +222,7 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 int processSPAT(xmlDocPtr message, msqList * clients, uint8_t test) {
 	int res;
 	xmlDocPtr ptrSPAT;
-	char ** stateRaw, ** stateXML, ** refPoint, ** moy, ** mSec;
+	char ** stateRaw, ** stateXML, ** moy, ** mSec;
 	msqList * clientPtr;
 	msqElement s2c;
 
@@ -251,10 +254,8 @@ int processSPAT(xmlDocPtr message, msqList * clients, uint8_t test) {
 			freeArray(moy);
 			freeArray(mSec);
 		}
-		
-		refPoint	= getTree(ptrSPAT, "//AdvisorySpeed");
 		s2c.prio	= 2;
-		sprintf(s2c.message, "%s", *(refPoint));
+		sprintf(s2c.message, "%s", *(stateXML+i));
 		while (clientPtr != NULL) {
 			res = msgsnd(clientPtr->id, &s2c, MSQ_LEN, 0);
 			if (res < 0)
@@ -266,8 +267,6 @@ int processSPAT(xmlDocPtr message, msqList * clients, uint8_t test) {
 			  
 			clientPtr = clientPtr->next;
 		}
-		
-		freeArray(refPoint);
 		xmlFreeDoc(ptrSPAT);
 	}
 	

@@ -18,16 +18,14 @@ int main(void) {
 	int (*func) (char *, clientStruct *);
 
 	int clientID, serverID, res;
-	char logText[LOG_BUF];
+	char logText[LOG_BUF], * clientMessage;
 	socket_t sockServer, sockClient;
 	clientStruct * client;
 	sockServer = getSocket(AF_INET, SOCK_STREAM, 0);
 	setSocketBind(&sockServer, INADDR_ANY, PORT);
 	setSocketListen(&sockServer);
 	
-	interStruct ** interTable, * interPtr;
-	laneStruct	* lanePtr;
-	segStruct	* segPtr;
+	interStruct ** interTable;
 	
 	msqElement c2s, s2c;
 	
@@ -56,6 +54,17 @@ int main(void) {
 							"Client Position latitude = %i | longitude = %i\n"
 							, client->name, client->serviceMask
 							, client->pos.latitude, client->pos.longitude);
+
+					// Lädt die Intersection-Daten für die Client-Region (Verkehrsdienst)
+					if ((interTable = getInterStructTable(client->region)) == NULL) {
+						sprintf(logText, "[%u]   Client process terminated",
+						client->pid);
+						setLogText(logText, LOG_CLIENT);
+						freeInterTable(interTable);
+						fflush(stdout);
+						close(sockClient);
+						exit(EXIT_FAILURE);
+					}
 
 					printf("Getting client-message-queue... ");
 					clientID = msgget(IPC_PRIVATE, PERM | IPC_CREAT);
@@ -86,58 +95,24 @@ int main(void) {
 					sprintf(logText, "[%s]   Message queue registration done - SAFARI started\n",
 							client->name);
 					setLogText(logText, LOG_CLIENT);
-
-					// Übernahme der Region-ID aus dem Client-Response
-					interTable = getInterStructTable(0);
 					
 					func = setClientResponse;
-					
+					// Nachrichten vom Message-Manager verarbeiten
 					while (1) {
 						res = msgrcv(clientID, &s2c, MSQ_LEN, 0, IPC_NOWAIT);
 						if (res != -1) {
 							printf("Nachricht vom Message Manager erhalten!\n");
-							
-							// getHash(region, id, &refID, &hash);
-							interPtr = interTable[0];
-							while (interPtr != NULL) {
-								// Kreuzung in der Hash-Table gefunden
-								if (interPtr->refID == 0) {
-									// User befindet sich im Kreuzungsbereich
-									if (client->pos.latitude <= interPtr->borders.maxLat &&
-										client->pos.latitude >= interPtr->borders.minLat &&
-										client->pos.longitude <= interPtr->borders.maxLong &&
-										client->pos.longitude >= interPtr->borders.minLong)
-										{
-										printf("Client befindet sich im Bereich der interPtr->refID = %i\n", interPtr->refID);
-										// Durchlaufe die Lanes
-										lanePtr = interPtr->lanes;
-										while (lanePtr != NULL) {
-											segPtr = lanePtr->segments;
-											// Prüfe die Segmente
-											while (segPtr != NULL) {
-												if (client->pos.latitude <= segPtr->borders.maxLat &&
-													client->pos.latitude >= segPtr->borders.minLat &&
-													client->pos.longitude <= segPtr->borders.maxLong &&
-													client->pos.longitude >= segPtr->borders.minLong)
-													{
-														printf("Client befindet sich auf Lane %i\n", lanePtr->laneID);
-														// Nachricht vorbereiten
-													}
-													segPtr = segPtr->next;
-											}
-											lanePtr = lanePtr->next;
-										}
-										interPtr = interPtr->next;
-									}
+							// Verarbeitung der Nachricht vom Message Manager
+							clientMessage = getClientMessage(interTable, s2c.message, client);
+							if (clientMessage != NULL) {
+								if (getClientResponse(sockClient, MAX_RUN, func, clientMessage, client)) {
+									sprintf(logText, "[%s]   Client responses %i times with invalid data\n",
+											client->name, MAX_RUN);
+									setLogText(logText, LOG_CLIENT);
+									free(clientMessage);
+									break;
 								}
-							}
-							
-							
-							if (getClientResponse(sockClient, MAX_RUN, func, s2c.message, client)) {
-								sprintf(logText, "[%s]   Client responses %i times with invalid data\n",
-										client->name, MAX_RUN);
-								setLogText(logText, LOG_CLIENT);
-								break;
+								free(clientMessage);
 							}
 						}
 						usleep(10000);
@@ -150,6 +125,7 @@ int main(void) {
 				sprintf(logText, "[%u]   Client process terminated",
 						client->pid);
 				setLogText(logText, LOG_CLIENT);
+				freeInterTable(interTable);
 				fflush(stdout);
 				close(sockClient);
 				exit(EXIT_SUCCESS);

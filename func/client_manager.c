@@ -263,10 +263,12 @@ int setClientServices(char * msg, clientStruct * client) {
 		}
 	}
 	// Mindestens ein Dienst wurde bestätigt
-	if (client->serviceMask != 0)
+	if (client->serviceMask != 0) {
 		sprintf(logText,"[%s]   Verified services: %s\n",
 						client->name, serviceName);
-	else {
+		client->region		= (uint16_t)strtol(*(cityID),NULL,10);
+	} else {
+		client->region		= 0;	// Region ID 0 nur für Testzwecke
 		client->serviceMask = 128;
 		sprintf(logText,"[%s]   None requested services was verified\n",
 						client->name);
@@ -345,7 +347,7 @@ char * getServiceName(uint8_t servID) {
 	}
 }
 
-void getHash(uint16_t region, uint16_t id, uint32_t * refID, uint8_t * hash) {
+void getHash(uint16_t region, uint16_t id, unsigned int * refID, uint8_t * hash) {
 	*refID	 = region;
 	*refID <<= 16;
 	*refID  += id;
@@ -353,47 +355,44 @@ void getHash(uint16_t region, uint16_t id, uint32_t * refID, uint8_t * hash) {
 }
 
 interStruct ** getInterStructTable(uint16_t region) {
-	uint32_t refID;
-	uint16_t interID;
+	unsigned int refID;
+	uint16_t id;
 	uint8_t hash;
 	interStruct ** table, * inter, * interPtr;
-	laneStruct 	* lane, * lanePtr;
-	segStruct	* seg, * segPtr;
 	MYSQL_RES * resInter;
-	MYSQL_RES * resLane;
-	MYSQL_RES * resSeg;
 	MYSQL_ROW rowInter;
-	MYSQL_ROW rowLane;
-	MYSQL_ROW rowSeg;
-	MYSQL * dbCon = sqlConnect("safari");
+
+	MYSQL * db = sqlConnect("safari");
 	char query[Q_BUF];
 	// Hash-Table initialisieren
 	table = malloc(MAX_HASH * sizeof(interStruct *));
 	for (int i = 0; i < MAX_HASH; i++)
 		table[i] = NULL;
+
 	// Intersections des Anbieters abfragen
 	sprintf (query, "SELECT id, maxLong, maxLat, minLong, minLat "
 					"FROM intersections "
 					"WHERE region = '%i'", region);
-	if (mysql_query (dbCon, query))
-		sqlError(dbCon);
-	if ((resInter = mysql_store_result(dbCon)) == NULL) {
+	if (mysql_query (db, query))
+		sqlError(db);
+	if ((resInter = mysql_store_result(db)) == NULL) {
 		mysql_free_result(resInter);
-		sqlError(dbCon);
+		sqlError(db);
 	}
 	while ((rowInter = mysql_fetch_row(resInter))) {
+		id = (uint16_t)strtol(rowInter[0], NULL, 10);
+		getHash(region, id, &refID, &hash);
 		// Neues Intersection-Element anlegen
-		interID = (uint16_t)strtol(rowInter[0], NULL, 10);
-		getHash(region, interID, &refID, &hash);
-		inter					= malloc(sizeof(interStruct));
+		if ((inter = getInterStruct(db, region, id)) == NULL) {
+			mysql_free_result(resInter);
+			mysql_close(db);
+			return NULL;
+		}
 		inter->refID			= refID;
-		inter->next				= NULL;
-		inter->lanes			= NULL;
 		inter->borders.maxLong	= (int)strtol(rowInter[1], NULL, 10);
 		inter->borders.maxLat	= (int)strtol(rowInter[2], NULL, 10);
 		inter->borders.minLong	= (int)strtol(rowInter[3], NULL, 10);
 		inter->borders.minLat	= (int)strtol(rowInter[4], NULL, 10);
-		printf("inter->borders.minLat = %i\n", inter->borders.minLat);
 		// Kollisions-Abfrage
 		if (table[hash] == NULL)
 			table[hash] = inter;
@@ -403,71 +402,290 @@ interStruct ** getInterStructTable(uint16_t region) {
 				interPtr = interPtr->next;
 			interPtr->next = inter;
 		}
-		// Fahrspuren (Lanes) der Intersections abfragen
-		sprintf (query, "SELECT laneID, longitude, latitude "
-						"FROM lanes "
-						"WHERE region = '%u' && id = '%u'",
-						region, interID);
-		if (mysql_query (dbCon, query))
-			sqlError(dbCon);
-		if ((resLane = mysql_store_result(dbCon)) == NULL) {
-			mysql_free_result(resInter);
-			mysql_free_result(resLane);
-			sqlError(dbCon);
-		}
-		while ((rowLane = mysql_fetch_row(resLane))) {
-			// neues Lane-Element anlegen
-			lane				= malloc(sizeof(laneStruct));
-			lane->next			= NULL;
-			lane->segments		= NULL;
-			lane->laneID		= (int)strtol(rowLane[0],NULL,10);
-			lane->pos.longitude	= (int)strtol(rowLane[1],NULL,10);
-			lane->pos.latitude	= (int)strtol(rowLane[2],NULL,10);
-			if (inter->lanes == NULL) {
-				inter->lanes = lane;
-				lanePtr		 = lane;
-			} else {
-				lanePtr->next = lane;
-				lanePtr		  = lanePtr->next;
-			}
-			// Fahrspur-Segmente der Lanes abfragen
-			sprintf (query, "SELECT maxLong, maxLat, minLong, minLat "
-							"FROM segments "
-							"WHERE region = '%u' && id = '%u' && laneID = '%i'",
-							region, interID, lane->laneID);
-			if (mysql_query (dbCon, query))
-				sqlError(dbCon);
-			if ((resSeg = mysql_store_result(dbCon)) == NULL) {
-				mysql_free_result(resInter);
-				mysql_free_result(resLane);
-				mysql_free_result(resSeg);
-				sqlError(dbCon);
-			}
-			while ((rowSeg = mysql_fetch_row(resSeg))) {
-				// Neues Lane-Segment anlegen
-				seg					 = malloc(sizeof(segStruct));
-				seg->next			 = NULL;
-				seg->borders.maxLong = (int)strtol(rowSeg[0],NULL,10);
-				seg->borders.maxLat	 = (int)strtol(rowSeg[1],NULL,10);
-				seg->borders.minLong = (int)strtol(rowSeg[2],NULL,10);
-				seg->borders.minLat	 = (int)strtol(rowSeg[3],NULL,10);
-				if (lane->segments == NULL) {
-					lane->segments  = seg;
-					segPtr			= seg;
-				} else {
-					segPtr->next = seg;
-					segPtr		 = segPtr->next;
-				}
-			}
-			mysql_free_result(resSeg);
-		}
-		mysql_free_result(resLane);
 	}
 	mysql_free_result(resInter);
-	mysql_close(dbCon);
+	mysql_close(db);
 	return table;
 }
 
-void setInterStruct(interStruct ** table, uint16_t region, uint16_t id) {
+interStruct * getInterStruct(MYSQL * db, uint16_t region, uint16_t id) {
+	MYSQL_RES * resLane;
+	MYSQL_RES * resSeg;
+	MYSQL_ROW rowLane;
+	MYSQL_ROW rowSeg;
 	
+	interStruct * inter;
+	laneStruct 	* lane, * lanePtr;
+	segStruct	* seg, * segPtr;
+
+	char query[Q_BUF];
+	inter		 = malloc(sizeof(interStruct));
+	inter->next	 = NULL;
+	inter->lanes = NULL;
+	
+	// Fahrspuren (Lanes) der Intersection abfragen
+	sprintf (query, "SELECT laneID, longitude, latitude "
+					"FROM lanes "
+					"WHERE region = '%u' && id = '%u'",
+					region, id);
+	if (mysql_query (db, query))
+		sqlError(db);
+	if ((resLane = mysql_store_result(db)) == NULL) {
+		mysql_free_result(resLane);
+		return NULL;
+	}
+	while ((rowLane = mysql_fetch_row(resLane))) {
+		// neues Lane-Element anlegen
+		lane				= malloc(sizeof(laneStruct));
+		lane->next			= NULL;
+		lane->segments		= NULL;
+		lane->laneID		= (int)strtol(rowLane[0],NULL,10);
+		lane->pos.longitude	= (int)strtol(rowLane[1],NULL,10);
+		lane->pos.latitude	= (int)strtol(rowLane[2],NULL,10);
+		if (inter->lanes == NULL) {
+			inter->lanes = lane;
+			lanePtr		 = lane;
+		} else {
+			lanePtr->next = lane;
+			lanePtr		  = lanePtr->next;
+		}
+		// Lane-Segmente abfragen
+		sprintf (query, "SELECT maxLong, maxLat, minLong, minLat "
+						"FROM segments "
+						"WHERE region = '%u' && id = '%u' && laneID = '%i'",
+						region, id, lane->laneID);
+		if (mysql_query (db, query))
+			sqlError(db);
+		if ((resSeg = mysql_store_result(db)) == NULL) {
+			mysql_free_result(resLane);
+			mysql_free_result(resSeg);
+			sqlError(db);
+			return NULL;
+		}
+		while ((rowSeg = mysql_fetch_row(resSeg))) {
+			// Neues Lane-Segment anlegen
+			seg					 = malloc(sizeof(segStruct));
+			seg->next			 = NULL;
+			seg->borders.maxLong = (int)strtol(rowSeg[0],NULL,10);
+			seg->borders.maxLat	 = (int)strtol(rowSeg[1],NULL,10);
+			seg->borders.minLong = (int)strtol(rowSeg[2],NULL,10);
+			seg->borders.minLat	 = (int)strtol(rowSeg[3],NULL,10);
+			if (lane->segments == NULL) {
+				lane->segments  = seg;
+				segPtr			= seg;
+			} else {
+				segPtr->next = seg;
+				segPtr		 = segPtr->next;
+			}
+		}
+		mysql_free_result(resSeg);
+	}
+	mysql_free_result(resLane);
+	
+	return inter;
+}
+
+char * getClientMessage(interStruct ** interTable, char * msg, clientStruct * client) {
+	xmlDocPtr xmlMsg, xmlState;
+	interStruct * interPtr;
+	laneStruct	* lanePtr;
+	segStruct	* segPtr;
+	char ** interStates, ** strRegion, ** strID, ** strLaneID;
+	unsigned int refID;
+	uint16_t region, id;
+	uint8_t laneID, hash, laneMatch = 0;
+	xmlMsg		= xmlReadMemory(msg, strlen(msg), NULL, NULL, 0);
+	interStates = getTree(xmlMsg, "//IntersectionState");
+	// # # #   SPaT-Nachricht   # # #
+	if (interStates != NULL) {
+		// Client-Nachricht vorbereiten
+		char * clientMsg = malloc(XML_TAG_LEN + strlen(SPAT_TAG_START));
+		strcpy(clientMsg, XML_TAG);
+		strcat(clientMsg, SPAT_TAG_START);
+		// IntersectionStates abarbeiten
+		for (int i = 0; *(interStates + i); i++) {
+			// Werte auslesen
+			xmlState  = xmlReadMemory(*(interStates+i), strlen(*(interStates+i)),NULL,NULL,0);
+			strRegion = getNodeValue(xmlState, "//id/region");
+			strID	  = getNodeValue(xmlState, "//id/id");
+			strLaneID = getNodeValue(xmlState, "//LaneID");
+			if (strID == NULL || strRegion == NULL || strLaneID == NULL) {
+				freeArray(strRegion);
+				freeArray(strLaneID);
+				freeArray(strID);
+				xmlFreeDoc(xmlState);
+				continue;
+			}
+			region = (uint16_t)strtol(*(strRegion),NULL,10);
+			id	   = (uint16_t)strtol(*(strID),NULL,10);
+			laneID = (uint8_t)strtol(*(strLaneID),NULL,10);
+			freeArray(strRegion);
+			freeArray(strLaneID);
+			freeArray(strID);
+			xmlFreeDoc(xmlState);
+			// Intersection-Liste aufrufen
+			getHash(region, id, &refID, &hash);
+			interPtr = interTable[hash];
+			// Kreuzungen abarbeiten
+			while (interPtr != NULL) {
+				printf("Hash-Eintrag gefunden\n");
+				// Kreuzung in der Hash-Table gefunden
+				if (interPtr->refID == refID) {
+					// User befindet sich im Kreuzungsbereich
+					if (client->pos.latitude <= interPtr->borders.maxLat &&
+						client->pos.latitude >= interPtr->borders.minLat &&
+						client->pos.longitude <= interPtr->borders.maxLong &&
+						client->pos.longitude >= interPtr->borders.minLong)
+						{
+						// Lanes abarbeiten
+						lanePtr = interPtr->lanes;
+						while (lanePtr != NULL) {
+							// Lane in der Liste != Lane in der Nachricht
+							if (lanePtr->laneID != laneID) {
+								lanePtr = lanePtr->next;
+								continue;
+							} else {
+								// Lane-Segmente prüfen
+								segPtr = lanePtr->segments;
+								while (segPtr != NULL) {
+									// User befindet sich in einem Lane-Segment
+									if (client->pos.latitude <= segPtr->borders.maxLat &&
+										client->pos.latitude >= segPtr->borders.minLat &&
+										client->pos.longitude <= segPtr->borders.maxLong &&
+										client->pos.longitude >= segPtr->borders.minLong)
+										{
+											laneMatch = 1;
+											// Nachricht vorbereiten
+											clientMsg = realloc(clientMsg, strlen(clientMsg) + strlen(*(interStates+i)));
+											strcat(clientMsg, *(interStates+i));
+											break;
+										}
+									segPtr = segPtr->next;
+								}
+								lanePtr = lanePtr->next;
+							}
+						}
+					}
+				} // eo if (interPtr->refID == refID)
+				interPtr = interPtr->next;
+			} // eo while (interPtr != NULL)
+		} // eo for (int i = 0; *(interStates + i); i++)
+		freeArray(interStates);
+		xmlFreeDoc(xmlMsg);
+		// Nachricht an den Client zurückgeben
+		if (laneMatch == 1) {
+			clientMsg = realloc(clientMsg, strlen(clientMsg)+strlen(SPAT_TAG_END)+1);
+			strcat(clientMsg, SPAT_TAG_END);
+			clientMsg[strlen(clientMsg)] = '\0';
+			return clientMsg;
+		} else {
+			free(clientMsg);
+			return NULL;
+		}
+	} // eo if (interStates != NULL)
+	freeArray(interStates);
+	// Nachricht zur Aktualisierung bestimter Intersection-Daten eingegangen
+	strRegion = getNodeValue(xmlMsg, "/mapUpdate/region");
+	strID	  = getNodeValue(xmlMsg, "/mapUpdate/id");
+	if (strRegion != NULL && strID != NULL)
+		setInterUpdate(interTable, strRegion, strID);
+
+	freeArray(strRegion);
+	freeArray(strID);
+	xmlFreeDoc(xmlMsg);
+	return NULL;
+}
+
+void setInterUpdate(interStruct ** interTable, char ** regions, char ** ids) {
+	unsigned int refID;
+	uint16_t region, id;
+	uint8_t hash, refMatch = 0;
+	interStruct * inter, * interPtr, * temp, * prev;
+	char query[Q_BUF];
+	MYSQL_RES * resInter;
+	MYSQL_ROW rowInter;
+	MYSQL * db = sqlConnect("safari");
+	for (int i = 0; *(regions+i) && *(ids+i); i++) {
+		region = (uint16_t)strtol(*(regions+i),NULL,10);
+		id	   = (uint16_t)strtol(*(ids+i),NULL,10);
+		getHash(region, id, &refID, &hash);
+		
+		// Intersections des Anbieters abfragen
+		sprintf (query, "SELECT maxLong, maxLat, minLong, minLat "
+						"FROM intersections "
+						"WHERE region = '%u' && id = '%u'", region, id);
+		if (mysql_query (db, query))
+			sqlError(db);
+		if ((resInter = mysql_store_result(db)) == NULL) {
+			mysql_free_result(resInter);
+			sqlError(db);
+		}
+		rowInter = mysql_fetch_row(resInter);
+		if ((inter = getInterStruct(db, region, id)) == NULL) {
+			mysql_free_result(resInter);
+			continue;
+		}
+		inter->refID			= refID;
+		inter->borders.maxLong	= (int)strtol(rowInter[0], NULL, 10);
+		inter->borders.maxLat	= (int)strtol(rowInter[1], NULL, 10);
+		inter->borders.minLong	= (int)strtol(rowInter[2], NULL, 10);
+		inter->borders.minLat	= (int)strtol(rowInter[3], NULL, 10);
+		
+		// interTable[hash] ist noch leer
+		if ((interPtr = interTable[hash]) == NULL)
+			interTable[hash] = inter;
+		// Suche nach der Intersection
+		else {
+			prev = NULL;
+			while (interPtr != NULL) {
+				if (interPtr->refID == refID) {
+					refMatch = 1;
+					temp	 = interPtr;
+					// Erstes Element einhängen
+					if (prev == NULL)
+						interTable[hash] = inter;
+					// oder mit dem Vorgänger verknüpfen
+					else
+						prev->next = inter;
+					
+					inter->next = interPtr->next;
+					
+					freeInterStruct(temp);
+					break;
+				}
+				prev	 = interPtr;
+				interPtr = interPtr->next;
+			}
+			// refIDs stimmten nicht überein -> Element anhängen
+			if (refMatch == 0)
+				interPtr->next = inter;
+		}
+		mysql_free_result(resInter);
+	}
+	mysql_close(db);
+}
+
+void freeInterStruct(interStruct * inter) {
+	laneStruct * lanePtr, * laneTmp;
+	segStruct * segPtr, * segTmp;
+	lanePtr = inter->lanes;
+	while (lanePtr != NULL) {
+		segPtr = lanePtr->segments;
+		while (segPtr != NULL) {
+			segTmp = segPtr;
+			segPtr = segPtr->next;
+			free(segTmp);
+		}
+		laneTmp = lanePtr;
+		lanePtr = lanePtr->next;
+		free(laneTmp);
+	}
+	free(inter);
+}
+
+void freeInterTable(interStruct ** table) {
+	for (int i = 0; i < MAX_HASH; i++)
+		freeInterStruct(table[i]);
+	
+	free(table);
 }
