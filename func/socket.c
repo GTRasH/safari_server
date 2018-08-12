@@ -123,12 +123,11 @@ void setSocketContent(socket_t sock, char * message, long unsigned length) {
 	// Übertragung des Strings in MSG_BUF großen Blöcken
 	while (ptrAddr < length) {
 		sentBytes = send(sock, ptrStr, MSG_BUF, 0);
-		ptrAddr  += sentBytes;
-		ptrStr = message+ptrAddr;
+		ptrAddr	+= sentBytes;
+		ptrStr	= message+ptrAddr;
 	}
 	// Sende leeren String -> Ende-Signal für Empfänger
-	ptrStr[0] = '\0';
-	send(sock, ptrStr, 1, 0);
+	send(sock, TERM_NULL, 1, 0);
 }
 
 char * getSocketContent(socket_t sock) {

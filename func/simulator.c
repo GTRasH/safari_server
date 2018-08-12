@@ -17,7 +17,7 @@ xmlListHead * getxmlptrlist(char *pathname) {
 	if ((dir = opendir(pathname)) != NULL) {
 		while ((entry = readdir(dir)) != NULL) {
 			if (entry->d_type == DT_REG) {
-				xmlListElement *new = malloc(sizeof(xmlListElement));
+				xmlListElement * new = malloc(sizeof(xmlListElement));
 				new->next = NULL;
 				new->ptr  = NULL;
 				snprintf(docname, sizeof(docname), 

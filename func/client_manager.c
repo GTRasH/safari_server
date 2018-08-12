@@ -490,18 +490,15 @@ char * getClientMessage(interStruct ** interTable, char * msg, clientStruct * cl
 	interStruct * interPtr;
 	laneStruct	* lanePtr;
 	segStruct	* segPtr;
-	char ** interStates, ** strRegion, ** strID, ** strLaneID;
+	char ** interStates, ** strRegion, ** strID, ** strLaneID, clientMsg[MSQ_LEN];
 	unsigned int refID;
 	uint16_t region, id;
 	uint8_t laneID, hash, laneMatch = 0;
 	xmlMsg		= xmlReadMemory(msg, strlen(msg), NULL, NULL, 0);
-	interStates = getTree(xmlMsg, "//IntersectionState");
 	// # # #   SPaT-Nachricht   # # #
-	if (interStates != NULL) {
-		// Client-Nachricht vorbereiten
-		char * clientMsg = malloc(XML_TAG_LEN + strlen(SPAT_TAG_START));
-		strcpy(clientMsg, XML_TAG);
-		strcat(clientMsg, SPAT_TAG_START);
+	if (xmlContains(xmlMsg, "//IntersectionState")) {
+		interStates = getTree(xmlMsg, "//IntersectionState");
+		sprintf(clientMsg, "%s%s", XML_TAG, SPAT_TAG_START);
 		// IntersectionStates abarbeiten
 		for (int i = 0; *(interStates + i); i++) {
 			// Werte auslesen
@@ -556,8 +553,7 @@ char * getClientMessage(interStruct ** interTable, char * msg, clientStruct * cl
 										{
 											laneMatch = 1;
 											// Nachricht vorbereiten
-											clientMsg = realloc(clientMsg, strlen(clientMsg) + strlen(*(interStates+i)));
-											strcat(clientMsg, *(interStates+i));
+											sprintf(clientMsg + strlen(clientMsg), "%s", *(interStates+i));
 											break;
 										}
 									segPtr = segPtr->next;
@@ -573,26 +569,27 @@ char * getClientMessage(interStruct ** interTable, char * msg, clientStruct * cl
 		freeArray(interStates);
 		xmlFreeDoc(xmlMsg);
 		// Nachricht an den Client zurückgeben
-		if (laneMatch == 1) {
-			clientMsg = realloc(clientMsg, strlen(clientMsg)+strlen(SPAT_TAG_END)+1);
-			strcat(clientMsg, SPAT_TAG_END);
-			clientMsg[strlen(clientMsg)] = '\0';
-			return clientMsg;
-		} else {
-			free(clientMsg);
+		if (laneMatch == 0)
 			return NULL;
+		else {
+			sprintf(clientMsg + strlen(clientMsg), "%s", SPAT_TAG_END);
+			char * ret = malloc(strlen(clientMsg)+1);
+			strcat(clientMsg, TERM_NULL);
+			strcpy(ret, clientMsg);
+			return ret;
 		}
 	} // eo if (interStates != NULL)
-	freeArray(interStates);
-	// Nachricht zur Aktualisierung bestimter Intersection-Daten eingegangen
-	strRegion = getNodeValue(xmlMsg, "/mapUpdate/region");
-	strID	  = getNodeValue(xmlMsg, "/mapUpdate/id");
-	if (strRegion != NULL && strID != NULL)
-		setInterUpdate(interTable, strRegion, strID);
+	if (xmlContains(xmlMsg, "/mapUpdate")) {
+		// Nachricht zur Aktualisierung bestimter Intersection-Daten eingegangen
+		strRegion = getNodeValue(xmlMsg, "/mapUpdate/region");
+		strID	  = getNodeValue(xmlMsg, "/mapUpdate/id");
+		if (strRegion != NULL && strID != NULL)
+			setInterUpdate(interTable, strRegion, strID);
 
-	freeArray(strRegion);
-	freeArray(strID);
-	xmlFreeDoc(xmlMsg);
+		freeArray(strRegion);
+		freeArray(strID);
+		xmlFreeDoc(xmlMsg);
+	}
 	return NULL;
 }
 
@@ -685,7 +682,8 @@ void freeInterStruct(interStruct * inter) {
 
 void freeInterTable(interStruct ** table) {
 	for (int i = 0; i < MAX_HASH; i++)
-		freeInterStruct(table[i]);
+		if (table[i] != NULL)
+			freeInterStruct(table[i]);
 	
 	free(table);
 }

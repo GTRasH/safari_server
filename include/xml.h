@@ -60,3 +60,5 @@ char ** getWellFormedXML(char ** trees);
  * \return	String
  */
 char ** getTree(xmlDocPtr message, char * tag);
+
+int xmlContains(xmlDocPtr doc, char * expression);

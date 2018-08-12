@@ -57,8 +57,9 @@ int main(void) {
 
 					// Lädt die Intersection-Daten für die Client-Region (Verkehrsdienst)
 					if ((interTable = getInterStructTable(client->region)) == NULL) {
-						sprintf(logText, "[%u]   Client process terminated",
-						client->pid);
+						sprintf(logText, 
+								"[%u]   Client process terminated due to intersection-table error",
+								client->pid);
 						setLogText(logText, LOG_CLIENT);
 						freeInterTable(interTable);
 						fflush(stdout);
@@ -121,11 +122,11 @@ int main(void) {
 					c2s.prio = 1;
 					sprintf (c2s.message, "%d", clientID);
 					msgsnd (serverID, &c2s, MSQ_LEN, 0);
+					freeInterTable(interTable);
 				}
 				sprintf(logText, "[%u]   Client process terminated",
 						client->pid);
 				setLogText(logText, LOG_CLIENT);
-				freeInterTable(interTable);
 				fflush(stdout);
 				close(sockClient);
 				exit(EXIT_SUCCESS);

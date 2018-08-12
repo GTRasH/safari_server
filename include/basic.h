@@ -12,6 +12,8 @@
 #define LOG_SERVER	LIB_SAFARI"/var/log/server"
 #define LOG_BUF 256
 
+#define TERM_NULL "\0"
+
 /** \brief Fehlerfunktion
  * 
  * \param[in] *message	Fehlermeldung

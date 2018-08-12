@@ -41,7 +41,7 @@ char ** getNodeValue(xmlDocPtr doc, char * expression) {
 		length	= (int)strlen(temp);
 		arr[i]	= calloc(length+1, sizeof(char));
 		strcpy(arr[i], temp);
-		arr[i][length] = '\0';
+		strcat(arr[i], TERM_NULL);
 		free(temp);
 	}
 	arr[size] = NULL;
@@ -108,26 +108,43 @@ char ** getTree(xmlDocPtr message, char * tag) {
 	xmlNodeSetPtr nodeSet;
 	xmlBufferPtr xmlBuff;
 	char ** array;
-	int countNodes, dumpSize;
+	int cntNodes, dumpSize;
 	// Aufruf aller Knoten (Evaluierung mittels tag)
 	xpathObj = getNodes(message, tag);
 	nodeSet	 = xpathObj->nodesetval;
-	if ((countNodes = (nodeSet) ? nodeSet->nodeNr : 0) == 0) {
+	cntNodes = (nodeSet) ? nodeSet->nodeNr : 0;
+	if (cntNodes == 0) {
 		xmlXPathFreeNodeSet(nodeSet);
 		return NULL;
 	}
 
 	// erstellt für jeden gefundenen Tag einen XML-Doc-String
-	array = calloc(countNodes+1, sizeof(char*));
-	for (int i = 0; i < countNodes; ++i) {
+	array = calloc(cntNodes+1, sizeof(char *));
+	for (int i = 0; i < cntNodes; ++i) {
 		xmlBuff	 = xmlBufferCreate();
 		dumpSize = xmlNodeDump(xmlBuff, message, nodeSet->nodeTab[i], 0, 0);
 		array[i] = calloc((dumpSize + 1), sizeof(char));
 		array[i] = strcpy(array[i], (char *) xmlBuff->content);
-		array[i][dumpSize] = '\0';
+		strcat(array[i], TERM_NULL);
 		xmlBufferFree(xmlBuff);
 	}
-	array[countNodes] = NULL;	// Array sicher abgeschlossen
+	array[cntNodes] = NULL;	// Array sicher abgeschlossen
 	xmlXPathFreeObject(xpathObj);
 	return array;
+}
+
+int xmlContains(xmlDocPtr doc, char * expression) {
+	int result;
+	xmlNodeSetPtr nodes;
+	xmlXPathObjectPtr xpathObj;
+	xpathObj = getNodes(doc, expression);
+	if (xpathObj == NULL) {
+		xmlXPathFreeObject(xpathObj);
+		return 0;
+	}
+	nodes  = xpathObj->nodesetval;
+	result = (nodes) ? nodes->nodeNr : 0;
+	
+	xmlXPathFreeObject(xpathObj);
+	return result;
 }

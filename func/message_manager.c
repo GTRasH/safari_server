@@ -206,7 +206,7 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 		clientPtr	= clients;
 		s2c.prio	= 2;
 		strcat(clientNotify, "</mapUpdate>");
-		clientNotify[strlen(clientNotify)] = '\0';
+		strcat(clientNotify, TERM_NULL);
 		sprintf(s2c.message, "%s", clientNotify);
 		while (clientPtr != NULL) {
 			msgsnd(clientPtr->id, &s2c, MSQ_LEN, 0);
