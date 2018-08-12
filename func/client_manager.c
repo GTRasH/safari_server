@@ -146,6 +146,7 @@ int setClientLocation(char * msg, clientStruct * client) {
 	xmlDocPtr xmlMsg  = xmlReadMemory(msg, strlen(msg), NULL, NULL, 0);
 	char ** longitude = getNodeValue(xmlMsg, "//refPoint/long");
 	char ** latitude  = getNodeValue(xmlMsg, "//refPoint/lat");
+	int moy, mSec;
 	// Ungültiger Location-Response
 	if (longitude == NULL || latitude == NULL) {
 		freeArray(longitude);
@@ -153,9 +154,11 @@ int setClientLocation(char * msg, clientStruct * client) {
 		xmlFreeDoc(xmlMsg);
 		return 1;
 	}
+	getTimestamp(&moy, &mSec);
+	client->update.mSec	  = mSec;
+	client->update.moy	  = moy;
 	client->pos.latitude  = strtol(*(latitude), NULL, 10);
 	client->pos.longitude = strtol(*(longitude), NULL, 10);
-	
 	freeArray(longitude);
 	freeArray(latitude);
 	xmlFreeDoc(xmlMsg);
@@ -285,7 +288,8 @@ int setClientServices(char * msg, clientStruct * client) {
 		sprintf(logText,"[%s]   Selected movement type: %s\n",
 				client->name, moveTypes[typeID]);
 		setLogText(logText, LOG_CLIENT);
-		client->type = typeID;
+		client->type			= typeID;
+		client->update.timeGap *= typeID;
 	}
 	
 	mysql_free_result(dbResult);
@@ -306,6 +310,9 @@ clientStruct * setClientStruct(unsigned int pid) {
 	str->pos.longitude	= 0;
 	str->pid			= pid;
 	str->type			= unkown;
+	str->update.moy		= 0;
+	str->update.mSec	= 0;
+	str->update.timeGap = 1000;
 	return str;
 }
 
@@ -686,4 +693,17 @@ void freeInterTable(interStruct ** table) {
 			freeInterStruct(table[i]);
 	
 	free(table);
+}
+
+uint8_t updateRequired(clientStruct * client) {
+	int moy, mSec;
+	getTimestamp(&moy, &mSec);
+	if (client->update.moy == moy &&
+		(mSec - client->update.mSec) > client->update.timeGap)
+		return 1;
+	else if (client->update.moy != moy &&
+			  (60000 - client->update.mSec + mSec) > client->update.timeGap)
+		return 1;
+
+	return 0;
 }

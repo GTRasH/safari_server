@@ -50,3 +50,5 @@ char * getFileContent(const char * fileName);
 void setLogText(char * text, const char * logFile);
 
 char ** getSplitString(char * a_str, const char a_delim);
+
+void getTimestamp(int * moy, int * mSec);

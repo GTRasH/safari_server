@@ -31,5 +31,3 @@ xmlListHead *getxmlptrlist(char *pathname);
 void freeList(xmlListHead * head);
 
 void setMessage(int msgSocket, xmlDocPtr doc);
-
-void getTimestamp(int * moy, int * mSec);

@@ -23,7 +23,6 @@
 #define SPAT_TAG_START "<SPAT>\n"
 #define SPAT_TAG_END "\n</SPAT>"
 
-
 /** \brief	Intervallgrenzen */
 typedef struct {
 	int maxLong;
@@ -80,9 +79,9 @@ typedef enum service {
 
 typedef enum moveType {
 	unkown,
-	feet,
+	motor,
 	bike,
-	motor
+	feet
 } moveType;
 
 typedef struct {
@@ -91,13 +90,19 @@ typedef struct {
 } msqElement;
 
 typedef struct {
+	int moy;
+	int mSec;
+	int timeGap;
+} timeStruct;
+
+typedef struct {
 	char name[50];
 	location pos;
+	timeStruct update;
 	uint16_t region;
 	uint8_t serviceMask;
 	unsigned int pid;
 	moveType type;
-	
 } clientStruct;
 
 /** \brief	Init Client bestehend aus Authentifizierung, 
@@ -191,3 +196,5 @@ void setInterUpdate(interStruct ** interTable, char ** regions, char ** ids);
 void freeInterTable(interStruct ** table);
 
 void freeInterStruct(interStruct * inter);
+
+uint8_t updateRequired(clientStruct * client);
