@@ -119,41 +119,33 @@ int getClientResponse(	int sock, int retries,
 }
 
 int setClientResponse(char * msg, clientStruct * client) {
-	char ** test;
 	xmlDocPtr xmlMsg = xmlReadMemory(msg, strlen(msg), NULL, NULL, 0);
 	// Client-Antwort enthält Positionsdaten
-	test = getNodeValue(xmlMsg, "//refPoint/long");
-	if (test != NULL) {
+	if (xmlContains(xmlMsg, "//refPoint/long")) {
 		xmlFreeDoc(xmlMsg);
-		freeArray(test);
 		return setClientLocation(msg, client);
 	}
-	freeArray(test);
 	// Client-Antwort enthält Services
-	test = getNodeValue(xmlMsg, "//service");
-	if (test != NULL) {
+	if (xmlContains(xmlMsg, "//service")) {
 		xmlFreeDoc(xmlMsg);
-		freeArray(test);
 		return setClientServices(msg, client);
 	}
 	// Client hat weder mit Positionsdaten noch mit Services geantwortet
 	xmlFreeDoc(xmlMsg);
-	freeArray(test);
 	return 1;
 }
 
 int setClientLocation(char * msg, clientStruct * client) {
-	xmlDocPtr xmlMsg  = xmlReadMemory(msg, strlen(msg), NULL, NULL, 0);
-	char ** longitude = getNodeValue(xmlMsg, "//refPoint/long");
-	char ** latitude  = getNodeValue(xmlMsg, "//refPoint/lat");
+	char ** longitude, ** latitude;
 	int moy, mSec;
+	xmlDocPtr xmlMsg = xmlReadMemory(msg, strlen(msg), NULL, NULL, 0);
 	// Ungültiger Location-Response
-	if (longitude == NULL || latitude == NULL) {
-		freeArray(longitude);
-		freeArray(latitude);
+	if (!(xmlContains(xmlMsg, "//refPoint/long") && xmlContains(xmlMsg, "//refPoint/lat"))) {
 		xmlFreeDoc(xmlMsg);
 		return 1;
 	}
+	longitude = getNodeValue(xmlMsg, "//refPoint/long");
+	latitude  = getNodeValue(xmlMsg, "//refPoint/lat");
 	getTimestamp(&moy, &mSec);
 	client->update.mSec	  = mSec;
 	client->update.moy	  = moy;
@@ -166,29 +158,29 @@ int setClientLocation(char * msg, clientStruct * client) {
 }
 
 int setClientAuth(char * msg, clientStruct * client) {
+	int result;
+	char query[Q_BUF], logText[LOG_BUF], ** user, ** pass;
+	xmlDocPtr xmlMsg;
+	MYSQL * dbCon;
 	MYSQL_RES * dbResult;
-	char query[Q_BUF], logText[LOG_BUF];
-	
-	int result		 = 1;
-	MYSQL * dbCon	 = sqlConnect("safari");
-	xmlDocPtr xmlMsg = xmlReadMemory(msg, strlen(msg), NULL, NULL, 0);
-	char ** nodeUser = getNodeValue(xmlMsg, "//data/user");
-	char ** nodePass = getNodeValue(xmlMsg, "//data/pass");
+
+	result = 1;
+	dbCon  = sqlConnect("safari");
+	xmlMsg = xmlReadMemory(msg, strlen(msg), NULL, NULL, 0);
 	// Ungültiger Auth-Response
-	if (nodeUser == NULL || nodePass == NULL) {
-		freeArray(nodeUser);
-		freeArray(nodePass);
+	if (!(xmlContains(xmlMsg, "//data/user") && xmlContains(xmlMsg, "//data/pass"))) {
 		xmlFreeDoc(xmlMsg);
 		mysql_close(dbCon);
 		return result;
 	}
-	
+	user = getNodeValue(xmlMsg, "//data/user");
+	pass = getNodeValue(xmlMsg, "//data/pass");
 	sprintf(logText, "[%u]   Receiving login data\n", client->pid);
 	setLogText(logText, LOG_CLIENT);
 
 	sprintf(query,	"SELECT name FROM users WHERE name = '%s' AND "
-					"pass = AES_ENCRYPT('%s', SHA2('safari', 512))"
-					, *(nodeUser), *(nodePass));
+					"pass = AES_ENCRYPT('%s', SHA2('safari', 512))",
+					*(user), *(pass));
 	
 	if (mysql_query(dbCon, query))
 		sqlError(dbCon);
@@ -208,44 +200,44 @@ int setClientAuth(char * msg, clientStruct * client) {
 	mysql_free_result(dbResult);
 	mysql_close(dbCon);
 	xmlFreeDoc(xmlMsg);
-	freeArray(nodeUser);
-	freeArray(nodePass);
+	freeArray(user);
+	freeArray(pass);
 	return result;
 }
 
 int setClientServices(char * msg, clientStruct * client) {
 	uint8_t servReqID, servRowID, typeID;
+	MYSQL * dbCon;
 	MYSQL_RES * dbResult;
 	MYSQL_ROW row;
-	char query[Q_BUF], logText[LOG_BUF], serviceName[LOG_BUF], * tmp;
-	MYSQL * dbCon	 = sqlConnect("safari");
-	xmlDocPtr xmlMsg = xmlReadMemory(msg, strlen(msg), NULL, NULL, 0);
-	char ** services = getNodeValue(xmlMsg, "//service");
-	char ** cityID	 = getNodeValue(xmlMsg, "//cityID");
-	char ** type	 = getNodeValue(xmlMsg, "//movementType");
-	serviceName[0]	 = '\0';
+	xmlDocPtr xmlMsg;
+	char query[Q_BUF], logText[LOG_BUF], servName[LOG_BUF], * tmp,
+		 ** services, ** region, ** type;
+
+	dbCon		= sqlConnect("safari");
+	xmlMsg		= xmlReadMemory(msg, strlen(msg), NULL, NULL, 0);
+	servName[0]	= '\0';
 	// Ungültiger Service-Response
-	if (services == NULL || cityID == NULL || type == NULL) {
-		freeArray(services);
-		freeArray(type);
-		freeArray(cityID);
+	if (!(xmlContains(xmlMsg, "//service") && xmlContains(xmlMsg, "//cityID") &&
+		  xmlContains(xmlMsg, "//movementType"))) {
 		xmlFreeDoc(xmlMsg);
 		mysql_close(dbCon);
 		return 1;
 	}
+	services = getNodeValue(xmlMsg, "//service");
+	region	 = getNodeValue(xmlMsg, "//cityID");
+	type	 = getNodeValue(xmlMsg, "//movementType");
 	// TESTING - Log-Update
 	sprintf(logText,"[%s]   Receiving vehicle type and service "
 					"request\n", client->name);
 	setLogText(logText, LOG_CLIENT);
-	// Prüfe die angeforderten Dienste gegen die für die Stadt Hinterlegten
+	// Prüfe die angeforderten Dienste gegen die für den Anbieter hinterlegten
 	sprintf(query,	"SELECT serviceid FROM services "
-					"WHERE cityid = '%s'", *(cityID));
+					"WHERE cityid = '%s'", *(region));
 	
-	if (mysql_query(dbCon, query))
-		sqlError(dbCon);
-	if ((dbResult = mysql_store_result(dbCon)) == NULL)
-		sqlError(dbCon);
-	
+	mysql_query(dbCon, query);
+	dbResult = mysql_store_result(dbCon);
+
 	client->serviceMask = 0;
 	
 	while ((row = mysql_fetch_row(dbResult))) {
@@ -255,11 +247,11 @@ int setClientServices(char * msg, clientStruct * client) {
 			if (servRowID == servReqID) {
 				client->serviceMask += servReqID;
 				tmp = getServiceName(servReqID);
-				if (strlen(serviceName) == 0)
-					strcpy(serviceName, tmp);
+				if (strlen(servName) == 0)
+					strcpy(servName, tmp);
 				else {
-					strcat(serviceName, " | ");
-					strcat(serviceName, tmp);
+					strcat(servName, " | ");
+					strcat(servName, tmp);
 				}
 				free(tmp);
 			}
@@ -267,26 +259,21 @@ int setClientServices(char * msg, clientStruct * client) {
 	}
 	// Mindestens ein Dienst wurde bestätigt
 	if (client->serviceMask != 0) {
-		sprintf(logText,"[%s]   Verified services: %s\n",
-						client->name, serviceName);
-		client->region		= (uint16_t)strtol(*(cityID),NULL,10);
+		sprintf(logText,"[%s]   Verified services: %s\n", client->name, servName);
+		client->region	= (uint16_t)strtol(*(region),NULL,10);
 	} else {
 		client->region		= 0;	// Region ID 0 nur für Testzwecke
 		client->serviceMask = 128;
-		sprintf(logText,"[%s]   None requested services was verified\n",
-						client->name);
+		sprintf(logText,"[%s]   None requested services was verified\n", client->name);
 	}
 	setLogText(logText, LOG_CLIENT);
-	
 	// Setzen des Fortbewegungsmittels
 	typeID = (uint8_t)strtol(*(type), NULL, 10);
 	if (typeID != 1 && typeID != 2 && typeID != 3) {
-		sprintf(logText,"[%s]   Unknown movement type received\n",
-				client->name);
+		sprintf(logText,"[%s]   Unknown movement type received\n", client->name);
 		setLogText(logText, LOG_CLIENT);
 	} else {
-		sprintf(logText,"[%s]   Selected movement type: %s\n",
-				client->name, moveTypes[typeID]);
+		sprintf(logText,"[%s]   Selected movement type: %s\n", client->name, moveTypes[typeID]);
 		setLogText(logText, LOG_CLIENT);
 		client->type			= typeID;
 		client->update.timeGap *= typeID;
@@ -296,7 +283,7 @@ int setClientServices(char * msg, clientStruct * client) {
 	mysql_close(dbCon);
 	xmlFreeDoc(xmlMsg);
 	freeArray(type);
-	freeArray(cityID);
+	freeArray(region);
 	freeArray(services);
 
 	return 0;
@@ -354,7 +341,7 @@ char * getServiceName(uint8_t servID) {
 	}
 }
 
-void getHash(uint16_t region, uint16_t id, unsigned int * refID, uint8_t * hash) {
+void getHash(uint16_t region, uint16_t id, uint32_t * refID, uint8_t * hash) {
 	*refID	 = region;
 	*refID <<= 16;
 	*refID  += id;
@@ -362,7 +349,7 @@ void getHash(uint16_t region, uint16_t id, unsigned int * refID, uint8_t * hash)
 }
 
 interStruct ** getInterStructTable(uint16_t region) {
-	unsigned int refID;
+	uint32_t refID;
 	uint16_t id;
 	uint8_t hash;
 	interStruct ** table, * inter, * interPtr;
@@ -498,7 +485,7 @@ char * getClientMessage(interStruct ** interTable, char * msg, clientStruct * cl
 	laneStruct	* lanePtr;
 	segStruct	* segPtr;
 	char ** interStates, ** strRegion, ** strID, ** strLaneID, clientMsg[MSQ_LEN];
-	unsigned int refID;
+	uint32_t refID;
 	uint16_t region, id;
 	uint8_t laneID, hash, laneMatch = 0;
 	xmlMsg		= xmlReadMemory(msg, strlen(msg), NULL, NULL, 0);
@@ -532,7 +519,6 @@ char * getClientMessage(interStruct ** interTable, char * msg, clientStruct * cl
 			interPtr = interTable[hash];
 			// Kreuzungen abarbeiten
 			while (interPtr != NULL) {
-				printf("Hash-Eintrag gefunden\n");
 				// Kreuzung in der Hash-Table gefunden
 				if (interPtr->refID == refID) {
 					// User befindet sich im Kreuzungsbereich
@@ -549,15 +535,22 @@ char * getClientMessage(interStruct ** interTable, char * msg, clientStruct * cl
 								lanePtr = lanePtr->next;
 								continue;
 							} else {
+								printf("Prüfe die Lane-Segmente\n");
 								// Lane-Segmente prüfen
 								segPtr = lanePtr->segments;
+								printf ("client->pos.latitude = %i   | client.pos->longitude = %i\n",
+										client->pos.latitude, client->pos.longitude);
 								while (segPtr != NULL) {
+									printf ("segPtr->borders.maxLat = %i  | segPtr->borders.minLat = %i  |"
+											"segPtr->borders.maxLong = %i  | segPtr->borders.minLong = %i\n",
+											segPtr->borders.maxLat, segPtr->borders.minLat, segPtr->borders.maxLong, segPtr->borders.minLong);
 									// User befindet sich in einem Lane-Segment
 									if (client->pos.latitude <= segPtr->borders.maxLat &&
 										client->pos.latitude >= segPtr->borders.minLat &&
 										client->pos.longitude <= segPtr->borders.maxLong &&
 										client->pos.longitude >= segPtr->borders.minLong)
 										{
+											printf("Client befindet sich auf Lane %i\n", lanePtr->laneID);
 											laneMatch = 1;
 											// Nachricht vorbereiten
 											sprintf(clientMsg + strlen(clientMsg), "%s", *(interStates+i));
@@ -601,7 +594,7 @@ char * getClientMessage(interStruct ** interTable, char * msg, clientStruct * cl
 }
 
 void setInterUpdate(interStruct ** interTable, char ** regions, char ** ids) {
-	unsigned int refID;
+	uint32_t refID;
 	uint16_t region, id;
 	uint8_t hash, refMatch = 0;
 	interStruct * inter, * interPtr, * temp, * prev;

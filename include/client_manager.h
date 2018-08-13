@@ -14,14 +14,14 @@
 #define REQ_AUTH	LIB_SAFARI"xml/client_manager/req_auth.xml"
 #define REQ_LOC 	LIB_SAFARI"xml/client_manager/req_loc.xml"
 
-#define MAX_LOGIN 10
-#define MAX_SERV 10
-#define MAX_LOC 10
-#define MAX_RUN 5
-#define MAX_HASH 20
+#define MAX_LOGIN	10
+#define MAX_SERV	10
+#define MAX_LOC		10
+#define MAX_RUN		5
+#define MAX_HASH	20
 
-#define SPAT_TAG_START "<SPAT>\n"
-#define SPAT_TAG_END "\n</SPAT>"
+#define SPAT_TAG_START	"<SPAT>\n"
+#define SPAT_TAG_END	"\n</SPAT>"
 
 /** \brief	Intervallgrenzen */
 typedef struct {
@@ -37,26 +37,32 @@ typedef struct {
 	int longitude;
 } location;
 
-/** \brief	Segment einer Local Service Area */
+/** \brief	Lane-Segment */
 typedef struct segStruct {
-	delimeters borders;
-	struct segStruct * next;
+	delimeters			borders;
+	struct segStruct	* next;
 } segStruct;
 
-/** \brief	Local Service Area (Fahrspur) */
+/** \brief	Lane (Local Service Area)
+ * 
+ *	\param pos		Geo-Koordinate der Stopp-Linie
+ *	\param laneID	Eindeutige Identifizierung einer Lane
+ *	\param segments	Liste der Lane-Segmente
+ * 	\param next		Zeiger auf nächste Lane
+ * */
 typedef struct laneStruct {
-	location pos;
-	int laneID;
-	segStruct * segments;
-	struct laneStruct * next;
+	location 			pos;
+	uint8_t				laneID;
+	segStruct			* segments;
+	struct laneStruct	* next;
 } laneStruct;
 
-/** \brief	Global Service Area (Kreuzungsbereich) */
+/** \brief	Intersection (Global Service Area) */
 typedef struct interStruct {
-	unsigned int refID;
-	delimeters borders;
-	laneStruct * lanes;
-	struct interStruct * next;
+	uint32_t 			refID;
+	delimeters 			borders;
+	laneStruct 			* lanes;
+	struct interStruct	* next;
 } interStruct;
 
 typedef void (*sighandler_t)(int);
@@ -65,6 +71,7 @@ sighandler_t mySignal(int sigNr, sighandler_t signalHandler);
 
 void noZombie(int sigNr);
 
+/** \brief	Service-Definition (2er Potenzen) */
 typedef enum service {
 	unreg	= 1,	// Client von Message-Queue abmelden
 	glosa	= 2,	// GLOSA
@@ -77,6 +84,7 @@ typedef enum service {
 					// die am Aufenthaltsort nicht angeboten werden!
 } Service;
 
+/** \brief	Fortbewegungsmittel (Berechnung der Update-Intervalle) */
 typedef enum moveType {
 	unkown,
 	motor,
@@ -84,25 +92,28 @@ typedef enum moveType {
 	feet
 } moveType;
 
+/** \brief	Nachrichten-Element der Message Queue */
 typedef struct {
 	long prio;
 	char message[MSQ_LEN];
 } msqElement;
 
+/** \brief	Zeitpunkt der letzten Positions-Aktualisierung */
 typedef struct {
 	int moy;
 	int mSec;
 	int timeGap;
 } timeStruct;
 
+
 typedef struct {
-	char name[50];
-	location pos;
-	timeStruct update;
-	uint16_t region;
-	uint8_t serviceMask;
+	char 		 name[50];
+	location 	 pos;
+	timeStruct	 update;
+	uint16_t 	 region;
+	uint8_t 	 serviceMask;
 	unsigned int pid;
-	moveType type;
+	moveType	 type;
 } clientStruct;
 
 /** \brief	Init Client bestehend aus Authentifizierung, 
@@ -161,11 +172,25 @@ int setClientServices(char * msg, clientStruct * client);
  */
 int setClientResponse(char * msg, clientStruct * client);
 
+/** \brief 	Initialisiert die Client-Struktur
+ * 
+ * \param[in]	pid	   Prozess-ID
+  * 
+ * \return	clientStruct wenn OK, 0 sonst
+ */
 clientStruct * setClientStruct(unsigned int pid);
 
+/** \brief 	Bestätigte Client-Services in lesbarer Form (Logging)
+ * 
+ * \param[in]	servID	Siehe clientStruct \param serviceMask
+ * 
+ * \return	String der Services
+ */
 char * getServiceName(uint8_t servID);
 
 /** \brief 	Liefert eine Hash-Table aller Intersections eines Anbieters
+ * 
+ * \param[in]	region	Anbieter-ID
  * 
  * \return	Hash-Table wenn OK, sonst NULL
  */
@@ -187,7 +212,7 @@ interStruct * getInterStruct(MYSQL * db, uint16_t region, uint16_t id);
  * 
  * \return	void
  */
-void getHash(uint16_t region, uint16_t id, unsigned int * refID, uint8_t * hash);
+void getHash(uint16_t region, uint16_t id, uint32_t * refID, uint8_t * hash);
 
 char * getClientMessage(interStruct ** interTable, char * msg, clientStruct * client);
 

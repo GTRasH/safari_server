@@ -17,7 +17,7 @@
 #define SEG_PART 200
 
 /** \brief	Teilstücke die ab der Stopp-Linie übersprungen werden */
-#define SEG_SKIP 0
+#define SEG_SKIP 2
 
 /** \brief Element für MAP-Nachrichten in Hash-Table */
 typedef struct intersectGeo {
@@ -83,12 +83,12 @@ uint32_t getReferenceID(xmlDocPtr xmlDoc);
 */
 double get100thMicroDegree(int elevation);
 
-/** \brief	Bindet die übergebenen Parameter
+/** \brief	Bindet die übergebenen Parameter zum Einfügen der Lane-Segmente
  * 
 */
-void setParamBind(MYSQL_BIND * bind, uint16_t * region, uint16_t * id, 
-				  uint8_t * laneID, uint8_t * nodeID, uint8_t * segID, 
-				  int * maxLong, int * maxLat, int * minLong, int * minLat);
+void setInsertParam(MYSQL_BIND * bind, uint16_t * region, uint16_t * id, 
+					uint8_t * laneID, uint8_t * segID, int * maxLong, 
+					int * maxLat, int * minLong, int * minLat);
 
 void setSegments(MYSQL_STMT * stmt, uint8_t * segID, int * maxLong, 
 				 int * maxLat, int * minLong, int * minLat, double microDeg, 

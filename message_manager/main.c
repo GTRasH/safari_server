@@ -21,10 +21,7 @@ int main (int argc, char * argv[]) {
 	uint8_t test = 0;
 	char * startParamError = "Ungültige Testoption, bitte mit --test={time|map} starten\n";
 	xmlDocPtr message;
-	msqList * clients;
-	// Initialsierung
-	clients	 = NULL;
-	
+	msqList * clients = NULL;
 	// Auswertung der Testoption wenn ein Startparameter übergeben wurde
 	if (argc > 1) {
 		char ** startParam = getSplitString(argv[1], '=');
@@ -53,22 +50,19 @@ int main (int argc, char * argv[]) {
 	serverID = msgget(KEY, PERM  | IPC_CREAT);
 	// Nachrichtenverarbeitung bis Simulator abendiert
 	while (1) {
+		// Client-Registrierungen bzw. -Deregistrierungen verarbeiten
 		clients = setMsqClients(serverID, clients);
-		
+		// Nachricht vom Simulator empfangen
 		if ((message = getMessage(socketFD)) == NULL) {
 			printf ("Error: Message Manager beendet - "
 					"Fehler beim Empfangen einer Nachricht vom Simulator\n");
 			break;
 		}
-
-		if ((msgId = getNodeValue(message, "//messageId")) == NULL) {
-			freeArray(msgId);
-			xmlFreeDoc(message);
-			printf ("Error: Nachricht ohne DSRCid erhalten - "
-					"Überspringe Nachricht\n");
+		if (!xmlContains(message, "//messageId")) {
+			printf ("Error: Nachricht ohne DSRCid erhalten - Überspringe Nachricht\n");
 			continue;
 		}
-		
+		msgId = getNodeValue(message, "//messageId");
 		// messageId auswerten und weitere Verarbeitung triggern
 		switch ((int)strtol(msgId[0], NULL, 10)) {
 			case 18:	switch (processMAP(message, clients, test)) {

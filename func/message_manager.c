@@ -14,80 +14,81 @@ xmlDocPtr getMessage(int sock) {
 }
 
 int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
-	// MYSQL_RES * res;
 	xmlDocPtr xmlInterDoc, xmlLaneDoc, xmlNodeDoc;
 	char ** strRegion, ** strId, ** strLaneId, ** interLong, ** interLat,
 		 ** strElevation, ** strLaneWidth, ** strNodeWidth,
 		 ** strNodeLong, ** strNodeLat, ** temp, ** xmlInter, ** xmlLane, 
-		 ** xmlNodes, ** strOffsetX, ** strOffsetY;
+		 ** xmlNodes, ** strOffsetX, ** strOffsetY, query[Q_BUF], 
+		 interUpdate[MSG_BUF], clientNotify[MSG_BUF], queryStmt[Q_BUF];
 	int elevation, interOffset, interMaxLong, interMaxLat, interMinLong,
 		interMinLat, nodeLong, nodeLat, maxLong, maxLat, minLong, minLat;
 	double microDegree;
 	uint16_t region, id, laneWidth, nodeWidth, offsetX, offsetY;
-	uint8_t laneID, segID, nodeID, segPartSkip, update = 0;
-	char query[Q_BUF], interUpdate[MSG_BUF], clientNotify[MSG_BUF];
+	uint8_t laneID, segID, segSkip, update = 0;
 	msqList * clientPtr;
 	msqElement s2c;
+	MYSQL_STMT * stmt;
+	MYSQL_BIND bind[12];
 	MYSQL * dbCon = sqlConnect("safari");
 	
-	// Aktualisierung-Benachrichtung für die Clients vorbereiten
+	// Aktualisierungs-Benachrichtung für die Clients vorbereiten
 	strcpy(clientNotify, XML_TAG);
 	strcat(clientNotify, "<mapUpdate>\n");
 	// Jedes Element von geometry ist ein gültiger XML-String
-	if ((temp = getTree(message, "//IntersectionGeometry")) == NULL)
+	if (!xmlContains(message, "//IntersectionGeometry"))
 		return 1;
-
-	MYSQL_STMT * stmt;
-	MYSQL_BIND bind[13];
-	// Datenbank Update vorbereiten
-	char * qStmt =	"INSERT INTO segments "
-					"(region, id, laneID, nodeID, segID, maxLong, maxLat, minLong, minLat) "
-					"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) "
-					"ON DUPLICATE KEY UPDATE maxLong=?, maxLat=?, minLong=?, minLat=?";
+	
+	temp = getTree(message, "//IntersectionGeometry");
+	
+	// Datenbank für Segment-Update vorbereiten
+	sprintf(queryStmt,"%s", "INSERT INTO segments "
+							"(region, id, laneID, segID, maxLong, maxLat, minLong, minLat) "
+							"VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
+							"ON DUPLICATE KEY UPDATE maxLong=?, maxLat=?, minLong=?, minLat=?");
 	stmt = mysql_stmt_init(dbCon);
-	mysql_stmt_prepare(stmt, qStmt, strlen(qStmt));
+	mysql_stmt_prepare(stmt, queryStmt, strlen(queryStmt));
 	memset(bind, 0, sizeof(bind));
-	setParamBind(bind, &region, &id, &laneID, &nodeID, &segID, &maxLong, &maxLat, &minLong, &minLat);
+	setInsertParam(bind, &region, &id, &laneID, &segID, &maxLong, &maxLat, &minLong, &minLat);
 	mysql_stmt_bind_param(stmt, bind);
 
 	xmlInter = getWellFormedXML(temp);
 	freeArray(temp);
 
-	for (int i = 0; *(xmlInter+i); ++i) {
-		// IntersectionGeometry-Daten auslesen
+	for (int i = 0; *(xmlInter+i); i++) {
 		xmlInterDoc	 = xmlReadMemory(*(xmlInter+i), strlen(*(xmlInter+i)), NULL, NULL, 0);
+		// IntersectionReferenceID, refPoint oder laneWidth nicht gefunden -> nächste Intersection
+		if (!(xmlContains(xmlInterDoc, "//id/region") && xmlContains(xmlInterDoc, "//id/id") &&
+			  xmlContains(xmlInterDoc, "//refPoint/long") && xmlContains(xmlInterDoc, "//refPoint/lat") &&
+			  xmlContains(xmlInterDoc, "//laneWidth"))) {
+
+			xmlFreeDoc(xmlInterDoc);
+			continue;
+		}
+		// IntersectionGeometry-Daten auslesen
 		strRegion	 = getNodeValue(xmlInterDoc, "//id/region");
 		strId		 = getNodeValue(xmlInterDoc, "//id/id");
 		interLong	 = getNodeValue(xmlInterDoc, "//refPoint/long");
 		interLat	 = getNodeValue(xmlInterDoc, "//refPoint/lat");
-		strElevation = getNodeValue(xmlInterDoc, "//refPoint/elevation");
 		strLaneWidth = getNodeValue(xmlInterDoc, "//laneWidth");
-		// IntersectionReferenceID oder refPoint nicht gefunden -> nächste Intersection
-		if (strRegion == NULL || strId == NULL || interLong == NULL 
-			|| interLat == NULL || strLaneWidth == NULL) {
-			xmlFreeDoc(xmlInterDoc);
-			freeArray(strLaneWidth);
-			freeArray(strElevation);
-			freeArray(strRegion);
-			freeArray(strId);
-			freeArray(interLong);
-			freeArray(interLat);
-			continue;
-		}
-		// Kreuzungsumgebung bestimmen
 		region		 = (uint16_t)strtol(*(strRegion),NULL,10);
 		id			 = (uint16_t)strtol(*(strId),NULL,10);
 		laneWidth	 = (int)strtol(*(strLaneWidth),NULL,10);
-		elevation	 = (strElevation == NULL) ? 0 :
-						(int)strtol(*(strElevation),NULL,10);
+		// Höhe der Kreuzung
+		if (!xmlContains(xmlInterDoc, "//refPoint/elevation"))
+			elevation = 0;
+		else {
+			strElevation = getNodeValue(xmlInterDoc, "//refPoint/elevation");
+			elevation	 = (int)strtol(*(strElevation),NULL,10);
+			freeArray(strElevation);
+		}
+		// Kreuzungsumgebung (Global Service Area) bestimmen
 		microDegree	 = get100thMicroDegree(elevation);
 		interOffset	 = microDegree*INTER_AREA;
 		interMaxLong = (int)strtol(*(interLong),NULL,10) + interOffset;
 		interMaxLat	 = (int)strtol(*(interLat),NULL,10) + interOffset;
 		interMinLong = (int)strtol(*(interLong),NULL,10) - interOffset;
 		interMinLat  = (int)strtol(*(interLat),NULL,10) - interOffset;
-		
-		// DB aktualisieren
+		// Intersection auf der DB aktualisieren
 		sprintf	(query, 
 				"INSERT INTO intersections "
 				"(region, id, maxLong, maxLat, minLong, minLat) "
@@ -96,15 +97,11 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 				"minLong = '%i', minLat = '%i'", region, id, 
 				interMaxLong, interMaxLat, interMinLong, interMinLat, 
 				interMaxLong, interMaxLat, interMinLong, interMinLat);
+
 		if (mysql_query(dbCon, query))
 			sqlError(dbCon);
-		
-		sprintf(interUpdate,"<region>%u</region>\n<id>%u</id>\n",region,id);
-		strcat(clientNotify,interUpdate);
-		update		= 1;
-		segPartSkip	= SEG_SKIP;
 		// Lanes auslesen
-		if ((temp = getTree(xmlInterDoc, "//GenericLane")) == NULL) {
+		if (!xmlContains(xmlInterDoc, "//GenericLane")) {
 			xmlFreeDoc(xmlInterDoc);
 			freeArray(strRegion);
 			freeArray(strId);
@@ -112,44 +109,51 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 			freeArray(interLat);
 			continue;
 		}
+		// Intersection in Aktualisierungs-Benachrichtigung aufnehmen
+		sprintf(interUpdate,"<region>%u</region>\n<id>%u</id>\n",region,id);
+		strcat(clientNotify,interUpdate);
+		update	= 1;
+		// Lanes abarbeiten
+		temp	= getTree(xmlInterDoc, "//GenericLane");
 		xmlLane = getWellFormedXML(temp);
 		freeArray(temp);
-		// Lanes abarbeiten
-		for (int j = 0; *(xmlLane+j); ++j) {
-			xmlLaneDoc = xmlReadMemory(*(xmlLane+j), strlen(*(xmlLane+j)),
-										 NULL, NULL, 0);
-			strLaneId  = getNodeValue(xmlLaneDoc, "//laneID");
-			temp	   = getTree(xmlLaneDoc, "//NodeXY");
-			// Keine laneID oder Nodes vorhanden
-			if (strLaneId == NULL || temp == NULL) {
+		for (int j = 0; *(xmlLane+j); j++) {
+			xmlLaneDoc = xmlReadMemory(*(xmlLane+j), strlen(*(xmlLane+j)), NULL, NULL, 0);
+			// Keine laneID oder Nodes vorhanden -> nächste Lane
+			if (!(xmlContains(xmlLaneDoc, "//laneID") && xmlContains(xmlLaneDoc, "//NodeXY"))) {
 				xmlFreeDoc(xmlLaneDoc);
 				freeArray(strLaneId);
 				continue;
 			}
-			laneID	 = (uint8_t)strtol(*(strLaneId),NULL,10);
-			segID	 = 0;
-			xmlNodes = getWellFormedXML(temp);
+			segSkip	  = SEG_SKIP;
+			strLaneId = getNodeValue(xmlLaneDoc, "//laneID");
+			temp	  = getTree(xmlLaneDoc, "//NodeXY");
+			laneID	  = (uint8_t)strtol(*(strLaneId),NULL,10);
+			segID	  = 0;
+			xmlNodes  = getWellFormedXML(temp);
 			freeArray(temp);
-			for (int k = 0; *(xmlNodes+k); ++k) {
-				xmlNodeDoc	 = xmlReadMemory(*(xmlNodes+k), strlen(*(xmlNodes+k)),
-											 NULL, NULL, 0);
-				strNodeWidth = getNodeValue(xmlNodeDoc, "//dWidth");
-				nodeWidth = (strNodeWidth != NULL) ?
-					(uint16_t)strtol(*(strNodeWidth),NULL,10) + laneWidth :
-					laneWidth;
-											
+			// Lane-Segmente abarbeiten
+			for (int k = 0; *(xmlNodes+k); k++) {
+				xmlNodeDoc	 = xmlReadMemory(*(xmlNodes+k), strlen(*(xmlNodes+k)), NULL, NULL, 0);
+				// Berechnung der individuellen Lane-Breite
+				if (!xmlContains(xmlNodeDoc, "//dWidth"))
+					nodeWidth = laneWidth;
+				else {
+					strNodeWidth = getNodeValue(xmlNodeDoc, "//dWidth");
+					nodeWidth	 = (uint16_t)strtol(*(strNodeWidth),NULL,10) + laneWidth;
+					freeArray(strNodeWidth);
+				}
 				// Als ersten NodeXY wird der Referenzpunkt (Node-LLmD-64b) erwartet
 				if (k == 0) {
-					strNodeLong	= getNodeValue(xmlNodeDoc, "//node-LatLon/lon");
-					strNodeLat	= getNodeValue(xmlNodeDoc, "//node-LatLon/lat");
-					if (strNodeLong == NULL || strNodeLat == NULL) {
+					// Kein Node-LLmD-64b Element -> Abbruch der Lane-Segment-Abarbeitung
+					if (!(xmlContains(xmlNodeDoc, "//node-LatLon/lon") && xmlContains(xmlNodeDoc, "//node-LatLon/lat"))) {
 						xmlFreeDoc(xmlNodeDoc);
-						freeArray(strNodeLong);
-						freeArray(strNodeLat);
 						break;
 					}
-					nodeLong = (int)strtol(*(strNodeLong),NULL,10);
-					nodeLat	 = (int)strtol(*(strNodeLat),NULL,10);
+					strNodeLong	= getNodeValue(xmlNodeDoc, "//node-LatLon/lon");
+					strNodeLat	= getNodeValue(xmlNodeDoc, "//node-LatLon/lat");
+					nodeLong	= (int)strtol(*(strNodeLong),NULL,10);
+					nodeLat		= (int)strtol(*(strNodeLat),NULL,10);
 					sprintf (query, 
 							"INSERT INTO lanes "
 							"(region, id, laneID, longitude, latitude) "
@@ -165,27 +169,25 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 				}
 				else
 				{
-					strOffsetX	= getNodeValue(xmlNodeDoc, "//x");
-					strOffsetY	= getNodeValue(xmlNodeDoc, "//y");
-					if (strOffsetX == NULL || strOffsetY == NULL) {
+					// Keine Offset-Werte enthalten -> Abbruch der Lane-Segment-Abarbeitung
+					if (!(xmlContains(xmlNodeDoc, "//x") && xmlContains(xmlNodeDoc, "//y"))) {
 						xmlFreeDoc(xmlNodeDoc);
-						freeArray(strOffsetX);
-						freeArray(strOffsetY);
 						break;
 					}
-					offsetX	= (int)strtol(*(strOffsetX), NULL, 0);
-					offsetY	= (int)strtol(*(strOffsetY), NULL, 0);
-					setSegments(stmt, &segID, &maxLong, &maxLat, &minLong, &minLat,
-								microDegree, nodeWidth, segPartSkip, 
+					strOffsetX	= getNodeValue(xmlNodeDoc, "//x");
+					strOffsetY	= getNodeValue(xmlNodeDoc, "//y");
+					offsetX		= (int)strtol(*(strOffsetX), NULL, 0);
+					offsetY		= (int)strtol(*(strOffsetY), NULL, 0);
+					setSegments(stmt, &segID, &maxLong, &maxLat, &minLong, 
+								&minLat, microDegree, nodeWidth, segSkip, 
 								nodeLong, nodeLat, offsetX, offsetY);
 					// neuer Referenzpunkt für den nächsten Node
-					segPartSkip	= 0;
-					nodeLong	+= (int)(microDegree*offsetX);
-					nodeLat		+= (int)(microDegree*offsetY);
+					segSkip	  = 0;
+					nodeLong += (int)(microDegree*offsetX/100);
+					nodeLat	 += (int)(microDegree*offsetY/100);
 					freeArray(strOffsetX);
 					freeArray(strOffsetY);
 				}
-				freeArray(strNodeWidth);
 				xmlFreeDoc(xmlNodeDoc);
 			}
 			xmlFreeDoc(xmlLaneDoc);
@@ -199,7 +201,6 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 		freeArray(interLong);
 		freeArray(interLat);
 		freeArray(strLaneWidth);
-		freeArray(strElevation);
 	}
 	// Benachrichtigung der Clients
 	if (update == 1) {
@@ -240,8 +241,7 @@ int processSPAT(xmlDocPtr message, msqList * clients, uint8_t test) {
 		if (clientPtr == NULL && test == 0)
 			break;
 
-		ptrSPAT	= xmlReadMemory(*(stateXML+i), strlen(*(stateXML+i)), 
-								NULL, NULL, 0);
+		ptrSPAT	= xmlReadMemory(*(stateXML+i), strlen(*(stateXML+i)), NULL, NULL, 0);
 
 		// TESTING - Zeitstempel auf Konsole ausgeben
 		if (test & 1) {
@@ -273,23 +273,6 @@ int processSPAT(xmlDocPtr message, msqList * clients, uint8_t test) {
 	freeArray(stateXML);
 	
 	return 0;
-}
-
-uint32_t getReferenceID(xmlDocPtr xmlDoc) {
-	uint16_t regID, intID;
-	uint32_t refID;
-	char ** regulatorID, ** intersectID;
-	// Werte aus dem XML-Dokument parsen
-	regulatorID	= getNodeValue(xmlDoc, "//id/region");
-	intersectID	= getNodeValue(xmlDoc, "//id/id");
-	regID = (uint16_t)strtol(*(regulatorID), NULL, 10);
-	intID = (uint16_t)strtol(*(intersectID), NULL, 10);
-	freeArray(regulatorID);
-	freeArray(intersectID);
-	refID = regID;
-	refID <<= 16;
-	
-	return (refID + intID);
 }
 
 msqList * msqListAdd(int i, msqList * clients) {
@@ -365,7 +348,6 @@ void setSegments(MYSQL_STMT * stmt, uint8_t * segID, int * maxLong,
 	uint16_t degLaneWidth, degNodeGap, segments;
 	uint8_t offsetA, offsetB, offsetC;
 	double nodeGap, cos;
-	
 	// Strecke zwischen Bezugs- und Offset-Node in cm
 	nodeGap	 	 = sqrt((offsetX*offsetX)+(offsetY*offsetY));
 	// Umrechnung cm in 1/10 µGrad
@@ -379,23 +361,24 @@ void setSegments(MYSQL_STMT * stmt, uint8_t * segID, int * maxLong,
 	if (segments <= skip)
 		return;
 	// Teilstücke in 1/10 µGrad
-	degNodeGap /= segments;
-	segments -= skip;
+	degNodeGap 	/= segments;
+	segments	-= skip;
 	// 0° <= Segment-Winkel < 90°
 	if (offsetX > 0 && offsetY >= 0) {
-		// 0° <= Segment-Winkel < 45°
+		// 0° <= Segment-Winkel < 45° (Winkel zwischen Lane-Segment-Ausrichtung und Abzisse)
 		if ((cos = offsetX/nodeGap) > M_SQRT1_2) {
 			setOffsets(&offsetA, &offsetB, &offsetC, cos, degLaneWidth, degNodeGap);
-			// Grenzen für jedes Teilstück bestimmen
+			// Initiale Referenzwerte
 			*maxLat  = nodeLat + (int)ceil(offsetC/2.0) + skip * offsetB;
 			*maxLong = nodeLong + skip * offsetA;
-			while (*segID < segments) {
-				*segID	+= 1;
+			// Grenzen für jedes Teilstück bestimmen
+			for (int i = 0; i < segments; i++) {
 				*maxLat	 = *maxLat + offsetB;
 				*minLat	 = *maxLat - (offsetB + offsetC);
 				*minLong = *maxLong;
 				*maxLong = *minLong + offsetA;
 				mysql_stmt_execute(stmt);
+				*segID	+= 1;
 			}
 		}
 		// 45° <= Segment-Winkel < 90°
@@ -405,13 +388,13 @@ void setSegments(MYSQL_STMT * stmt, uint8_t * segID, int * maxLong,
 			setOffsets(&offsetA, &offsetB, &offsetC, cos, degLaneWidth, degNodeGap);
 			*maxLong = nodeLong + (int)ceil(offsetC/2.0) + skip * offsetB;
 			*maxLat	 = nodeLat + skip * offsetA;
-			while (*segID < segments) {
-				*segID	+= 1;
+			for (int i = 0; i < segments; i++) {
 				*maxLong = *maxLong + offsetB;
 				*minLong = *maxLong - (offsetB + offsetC);
 				*minLat	 = *maxLat;
 				*maxLat	 = *minLat + offsetA;
 				mysql_stmt_execute(stmt);
+				*segID	+= 1;
 			}
 		}
 	}
@@ -423,13 +406,13 @@ void setSegments(MYSQL_STMT * stmt, uint8_t * segID, int * maxLong,
 			setOffsets(&offsetA, &offsetB, &offsetC, cos, degLaneWidth, degNodeGap);
 			*maxLat	 = nodeLat + skip * offsetA;
 			*minLong = nodeLong - ((int)ceil(offsetC/2.0) + skip * offsetB);
-			while (*segID < segments) {
-				*segID	+= 1;
+			for (int i = 0; i < segments; i++) {
 				*minLat	 = *maxLat;
 				*maxLat	 = *minLat + offsetA;
 				*minLong = *minLong - offsetB;
 				*maxLong = *minLong + offsetB + offsetC;
 				mysql_stmt_execute(stmt);
+				*segID	+= 1;
 			}
 		}
 		// 135° <= Segment-Winkel < 180°
@@ -437,13 +420,13 @@ void setSegments(MYSQL_STMT * stmt, uint8_t * segID, int * maxLong,
 			setOffsets(&offsetA, &offsetB, &offsetC, cos, degLaneWidth, degNodeGap);
 			*minLong = nodeLong - skip * offsetA;
 			*maxLat	 = nodeLat + (int)ceil(offsetC/2.0) + skip * offsetB;
-			while (*segID < segments) {
-				*segID	+= 1;
+			for (int i = 0; i < segments; i++) {
 				*maxLong = *minLong;
 				*minLong = *maxLong - offsetA;
 				*maxLat	 = *maxLat + offsetB;
 				*minLat	 = *maxLat - (offsetB + offsetC);
 				mysql_stmt_execute(stmt);
+				*segID	+= 1;
 			}
 		}
 	}
@@ -454,13 +437,13 @@ void setSegments(MYSQL_STMT * stmt, uint8_t * segID, int * maxLong,
 			setOffsets(&offsetA, &offsetB, &offsetC, cos, degLaneWidth, degNodeGap);
 			*minLat	 = nodeLat - ((int)ceil(offsetC/2.0) + skip * offsetB);
 			*minLong = nodeLong - skip * offsetA;
-			while (*segID < segments) {
-				*segID	+= 1;
+			for (int i = 0; i < segments; i++) {
 				*maxLong = *minLong;
 				*minLong = *maxLong - offsetA;
 				*minLat	 = *minLat - offsetB;
 				*maxLat	 = *minLat + offsetB + offsetC;
 				mysql_stmt_execute(stmt);
+				*segID	+= 1;
 			}
 				
 		}
@@ -470,13 +453,13 @@ void setSegments(MYSQL_STMT * stmt, uint8_t * segID, int * maxLong,
 			setOffsets(&offsetA, &offsetB, &offsetC, cos, degLaneWidth, degNodeGap);
 			*minLong = nodeLong - ((int)ceil(offsetC/2.0) + skip * offsetB);
 			*minLat	 = nodeLat - skip * offsetA;
-			while (*segID < segments) {
-				*segID	+= 1;
+			for (int i = 0; i < segments; i++) {
 				*minLong = *minLong - offsetB;
 				*maxLong = *minLong + offsetB + offsetC;
 				*maxLat	 = *minLat;
 				*minLat	 = *maxLat - offsetA;
 				mysql_stmt_execute(stmt);
+				*segID	+= 1;
 			}
 		}
 	}
@@ -488,13 +471,13 @@ void setSegments(MYSQL_STMT * stmt, uint8_t * segID, int * maxLong,
 			setOffsets(&offsetA, &offsetB, &offsetC, cos, degLaneWidth, degNodeGap);
 			*maxLong = nodeLong + (int)ceil(offsetC/2.0) + skip * offsetB;
 			*minLat	 = nodeLat - skip * offsetA;
-			while (*segID < segments) {
-				*segID	+= 1;
+			for (int i = 0; i < segments; i++) {
 				*maxLong = *maxLong + offsetB;
 				*minLong = *maxLong - (offsetB + offsetC);
 				*maxLat	 = *minLat;
 				*minLat	 = *maxLat - offsetA;
 				mysql_stmt_execute(stmt);
+				*segID	+= 1;
 			}
 		}
 		// 315° <= Segment-Winkel < 360°
@@ -502,21 +485,21 @@ void setSegments(MYSQL_STMT * stmt, uint8_t * segID, int * maxLong,
 			setOffsets(&offsetA, &offsetB, &offsetC, cos, degLaneWidth, degNodeGap);
 			*minLat	 = nodeLat - ((int)ceil(offsetC/2.0) + skip * offsetB);
 			*maxLong = nodeLong + skip * offsetA;
-			while (*segID < segments) {
-				*segID	+= 1;
+			for (int i = 0; i < segments; i++) {
 				*minLong = *maxLong;
 				*maxLong = *minLong + offsetA;
 				*minLat	 = *minLat - offsetB;
 				*maxLat	 = *minLat + offsetB + offsetC;
 				mysql_stmt_execute(stmt);
+				*segID	+= 1;
 			}
 		}
 	}
 }
 
-void setParamBind(MYSQL_BIND * bind, uint16_t * region, uint16_t * id, 
-				  uint8_t * laneID, uint8_t * nodeID, uint8_t * segID, 
-				  int * maxLong, int * maxLat, int * minLong, int * minLat) {
+void setInsertParam(MYSQL_BIND * bind, uint16_t * region, uint16_t * id, 
+					uint8_t * laneID, uint8_t * segID, int * maxLong, 
+					int * maxLat, int * minLong, int * minLat) {
 
 	bind[0].buffer_type	 = MYSQL_TYPE_SHORT;
 	bind[0].buffer		 = (char *)region;
@@ -534,72 +517,49 @@ void setParamBind(MYSQL_BIND * bind, uint16_t * region, uint16_t * id,
 	bind[2].length		 = 0;
 	
 	bind[3].buffer_type	 = MYSQL_TYPE_TINY;
-	bind[3].buffer		 = (char *)nodeID;
+	bind[3].buffer		 = (char *)segID;
 	bind[3].is_null 	 = 0;
 	bind[3].length		 = 0;
 	
-	bind[4].buffer_type	 = MYSQL_TYPE_TINY;
-	bind[4].buffer		 = (char *)segID;
+	bind[4].buffer_type	 = MYSQL_TYPE_LONG;
+	bind[4].buffer		 = (char *)maxLong;
 	bind[4].is_null 	 = 0;
 	bind[4].length		 = 0;
 	
 	bind[5].buffer_type	 = MYSQL_TYPE_LONG;
-	bind[5].buffer		 = (char *)maxLong;
+	bind[5].buffer		 = (char *)maxLat;
 	bind[5].is_null 	 = 0;
 	bind[5].length		 = 0;
 	
 	bind[6].buffer_type	 = MYSQL_TYPE_LONG;
-	bind[6].buffer		 = (char *)maxLat;
+	bind[6].buffer		 = (char *)minLong;
 	bind[6].is_null 	 = 0;
 	bind[6].length		 = 0;
 	
 	bind[7].buffer_type	 = MYSQL_TYPE_LONG;
-	bind[7].buffer		 = (char *)minLong;
+	bind[7].buffer		 = (char *)minLat;
 	bind[7].is_null 	 = 0;
 	bind[7].length		 = 0;
 	
 	bind[8].buffer_type	 = MYSQL_TYPE_LONG;
-	bind[8].buffer		 = (char *)minLat;
+	bind[8].buffer		 = (char *)maxLong;
 	bind[8].is_null 	 = 0;
 	bind[8].length		 = 0;
 	
-	bind[9].buffer_type	 = MYSQL_TYPE_LONG;
-	bind[9].buffer		 = (char *)maxLong;
+	bind[9].buffer_type = MYSQL_TYPE_LONG;
+	bind[9].buffer		 = (char *)maxLat;
 	bind[9].is_null 	 = 0;
 	bind[9].length		 = 0;
 	
 	bind[10].buffer_type = MYSQL_TYPE_LONG;
-	bind[10].buffer		 = (char *)maxLat;
+	bind[10].buffer		 = (char *)minLong;
 	bind[10].is_null 	 = 0;
 	bind[10].length		 = 0;
 	
 	bind[11].buffer_type = MYSQL_TYPE_LONG;
-	bind[11].buffer		 = (char *)minLong;
+	bind[11].buffer		 = (char *)minLat;
 	bind[11].is_null 	 = 0;
 	bind[11].length		 = 0;
-	
-	bind[12].buffer_type = MYSQL_TYPE_LONG;
-	bind[12].buffer		 = (char *)minLat;
-	bind[12].is_null 	 = 0;
-	bind[12].length		 = 0;
-}
-
-void setPrepStmt(char * query, MYSQL_STMT * stmt, MYSQL * dbCon) {
-	stmt = mysql_stmt_init(dbCon);
-	if (!stmt)
-	{
-	  fprintf(stderr, " mysql_stmt_init(), out of memory\n");
-	  exit(0);
-	}
-/*	if (mysql_stmt_prepare(stmt, q, strlen(q)))
-	{
-	  fprintf(stderr, " mysql_stmt_prepare(), INSERT failed\n");
-	  fprintf(stderr, " %s\n", mysql_stmt_error(stmt));
-	  exit(0);
-	}
-	*/
-	fprintf(stdout, " prepare, INSERT successful\n");
-	
 }
 
 void setOffsets(uint8_t * offsetA, uint8_t * offsetB, uint8_t *offsetC,
@@ -612,7 +572,7 @@ void setOffsets(uint8_t * offsetA, uint8_t * offsetB, uint8_t *offsetC,
 
 double get100thMicroDegree(int elevation) {
 	// Radiant für 1 cm
-	double degree = asin(100000000.0/(WGS84_RAD + elevation * 10));
+	double rad = asin(100000000.0/(WGS84_RAD + elevation * 10));
 	// Umrechnung in 1/100 µGrad
-	return (360/(2*M_PI))*degree;
+	return ((360/(2*M_PI)) * rad);
 }

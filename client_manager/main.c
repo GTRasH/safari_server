@@ -88,8 +88,8 @@ int main(void) {
 					else
 						printf("Done\n");
 					
-					sprintf(logText, "[%s]   Message queue registration done - SAFARI started\n",
-							client->name);
+					sprintf(logText,"[%s]   Message queue registration done - SAFARI started\n",
+									client->name);
 					setLogText(logText, LOG_CLIENT);
 					// Nachrichten vom Message-Manager verarbeiten
 					while (1) {
