@@ -116,3 +116,19 @@ char ** getSplitString(char* a_str, const char a_delim) {
 
 	return result;
 }
+
+void getTimestamp(int * moy, int * mSec) {
+	struct timeval tv;
+	time_t timeVal;
+	struct tm * timeLocal;
+	
+	time(&timeVal);
+	timeLocal = localtime(&timeVal);
+	
+	gettimeofday(&tv, NULL);
+	
+	*mSec = (tv.tv_usec / 1000) + (timeLocal->tm_sec * 1000);
+	
+	*moy  = (24 * 60 * timeLocal->tm_yday) +
+			(60 * timeLocal->tm_hour) + timeLocal->tm_min;
+}

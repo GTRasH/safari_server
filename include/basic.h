@@ -12,6 +12,8 @@
 #define LOG_SERVER	LIB_SAFARI"/var/log/server"
 #define LOG_BUF 256
 
+#define TERM_NULL "\0"
+
 /** \brief Fehlerfunktion
  * 
  * \param[in] *message	Fehlermeldung
@@ -45,6 +47,27 @@ void freeArray(char ** array);
  */
 char * getFileContent(const char * fileName);
 
+/** \brief Schreibt einen Eintrag in die Server- oder Client-Log
+ * 
+ * \param[in] * text		Log-Eintrag
+ * \param[in] * logFile		LOG_SERVER oder LOG_CLIENT
+ * 
+ */
 void setLogText(char * text, const char * logFile);
 
+/** \brief Teilt einen String am Delimeter in n Teil-Strings
+ * 
+ * \param[in] * a_str		Zu teilender String
+ * \param[in] * a_delim		Delimeter
+ * 
+ * \return Array der Teil-Strings
+ */
 char ** getSplitString(char * a_str, const char a_delim);
+
+/** \brief 	Berechnet die Minuten das laufenden Jahres und die Millisekunden
+ * 			der aktuellen Minuten ausgehend von der Systemzeit.
+ * 
+ * \param[out] moy		minute of the year
+ * \param[out] mSec		ms
+ */
+void getTimestamp(int * moy, int * mSec);

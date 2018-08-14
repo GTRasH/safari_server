@@ -3,6 +3,8 @@
 #include <sys/stat.h>
 #include <signal.h>
 
+#include <mqueue.h>
+
 #include <basic.h>
 
 /* Magische Nummer */
@@ -12,3 +14,6 @@
 /* Zugriffsrechte */
 #define PERM 0666
 #undef signal
+
+#define MSQ_REG_QUEUE "/mq_register"
+#define MSQ_MSG_QUEUE "/mq_messages"

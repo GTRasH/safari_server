@@ -1,10 +1,23 @@
+
+#include <sys/shm.h>
+#include <math.h>
 #include <basic.h>
 #include <socket.h>
 #include <xml.h>
 #include <sql.h>
 #include <msq.h>
 
-#define MAX_HASH 100
+/** \brief	Kreuzungsbereich in m gemessen ab dem Mittelpunkt */
+#define INTER_AREA 300
+
+/** \brief	Mittlerer Erdradius nach WGS-84 in cm */
+#define WGS84_RAD 637100080
+
+/** \brief	Breite der Teilstücke eines Lane-Segments in cm */
+#define SEG_PART 200
+
+/** \brief	Teilstücke die ab der Stopp-Linie übersprungen werden */
+#define SEG_SKIP 2
 
 /** \brief Element für MAP-Nachrichten in Hash-Table */
 typedef struct intersectGeo {
@@ -14,11 +27,13 @@ typedef struct intersectGeo {
 	char * xml;
 } intersectGeo;
 
+/** \brief	Nachrichtenstruktur für Message-Queue-Elemente */
 typedef struct {
 	long prio;
 	char message[MSQ_LEN];
 } msqElement;
 
+/** \brief	Listen-Element für Message-Queue-Clients */
 typedef struct msqList {
 	int id;
 	struct msqList *next;
@@ -41,7 +56,7 @@ xmlDocPtr getMessage(int sock);
  * 
  * \return	xmlDocPtr auf xmlDoc einer Nachricht
  */
-int processMAP(xmlDocPtr message, MYSQL *con, intersectGeo ** mapTable, uint8_t test);
+int processMAP(xmlDocPtr message, msqList * clients, uint8_t test);
 
 /** \brief	Verarbeitet SPaT-Nachrichten
  * 			Selektiert Intersection
@@ -51,7 +66,7 @@ int processMAP(xmlDocPtr message, MYSQL *con, intersectGeo ** mapTable, uint8_t 
  * 
  * \return	xmlDocPtr auf xmlDoc einer Nachricht
  */
-int processSPAT(xmlDocPtr message, intersectGeo ** mapTable, msqList * clients, uint8_t test);
+int processSPAT(xmlDocPtr message, msqList * clients, uint8_t test);
 
 /** \brief	Berechnet aus der Regulator- und IntersectionID (jeweils 16 Bit)
  * 			die 32 Bit IntersectionReferenceID zur Verwendung als Hash-Schlüssel
@@ -62,82 +77,89 @@ int processSPAT(xmlDocPtr message, intersectGeo ** mapTable, msqList * clients, 
  */
 uint32_t getReferenceID(xmlDocPtr xmlDoc);
 
-/** \brief	Liefert ein String-Array. Jeder String ist ein Baum ab 'tag'.
+/** \brief	Berechnet 1/100 µGrad in Abhängigkeit der Höhe
  * 
- * \param[in] message	Pointer auf ein XML-Dokument
- * \param[in] tag		zu suchender Tag-Name (XPath-Expression)
+ * \param[in] elevation	Geographische Höhe der Kreuzung
  * 
- * \return	String
- */
-char ** getTree(xmlDocPtr message, char * tag);
+ * \return 1/100 µGrad
+*/
+double get100thMicroDegree(int elevation);
 
-/** \brief	Ergänzt die Strings im Array mit <?xml version="1.0"?>
+/** \brief	Bindet die übergebenen Parameter zum Einfügen der Lane-Segmente
  * 
- * \param[in] trees		Bäume
- * 
- * \return	XML-String (beginnend mit <?xml version="1.0"?>)
- */
-char ** getWellFormedXML(char ** trees);
+ * \param[in/out]	bind		MYSQL_BIND Pointer
+ * \param[in/out]	region		Anbieter ID
+ * \param[in/out]	id			Intersection ID
+ * \param[in/out]	laneID		Lane-ID
+ * \param[in/out]	segID		Segment-ID
+ * \param[in/out]	maxLong		Obergrenze Längengrad
+ * \param[in/out]	maxLat		Obergrenze Breitengrad
+ * \param[in/out]	minLong		Untergrenze Längengrad
+ * \param[in/out]	minLat		Untergrenze Breitengrad
+ *
+*/
+void setInsertParam(MYSQL_BIND * bind, uint16_t * region, uint16_t * id, 
+					uint8_t * laneID, uint8_t * segID, int * maxLong, 
+					int * maxLat, int * minLong, int * minLat);
 
-/** \brief	Generiert ein intersectionGeometry-Element für die Hash-Table
+/** \brief	Berechnet die Lane-Segment und fügt sie in die segments-Table ein
  * 
- * \param[in] refID		IntersectionReferenceID
- * \param[in] timestamp	MinuteOfTheYear
- * \param[in] xml		IntersectionGeometry als wohlgformter XML-String
+ * \param[in]	stmt		MYSQL_STMT - Vorbeitetes Update
+ * \param[in]	segID		Segment-ID
+ * \param[in]	maxLong		Obergrenze Längengrad
+ * \param[in]	maxLat		Obergrenze Breitengrad
+ * \param[in]	minLong		Untergrenze Längengrad
+ * \param[in]	minLat		Untergrenze Breitengrad
+ * \param[in]	microDeg	1/100 µGrad entsrechend 1cm
+ * \param[in]	laneWidth	Breite der Fahrspur
+ * \param[in]	skip		Anzahl der zu überspringenden Segmente
+ * \param[in]	nodeLong	Referenzpunkt Längengrad
+ * \param[in]	nodeLat		Referenzpunkt Breitengrad
+ * \param[in]	offsetX		Offset-Wert in X-Richtung (in cm)
+ * \param[in]	offsetY		Offset-Wert in Y-Richtung (in cm)
  * 
- * \return	intersectionGeometry-Element
- */
-intersectGeo * getNewGeoElement(uint32_t refID, char * timestamp, char * xml);
+*/
+void setSegments(MYSQL_STMT * stmt, uint8_t * segID, int * maxLong, 
+				 int * maxLat, int * minLong, int * minLat, double microDeg, 
+				 uint16_t laneWidth, uint8_t skip, int nodeLong, int nodeLat, 
+				 int16_t offsetX, int16_t offsetY);
 
-/** \brief	Sucht ein intersectionGeometry-Element in der Hash-Table mittels refID
+/** \brief	Berechnet die Offset-Werte zur weiteren Berechnung der Segmente
  * 
- * \param[in] refID		IntersectionReferenceID
+ * \param[out]	offsetA			Siehe LSA-Algorithmus
+ * \param[out]	offsetB			Siehe LSA-Algorithmus
+ * \param[out]	offsetC			Siehe LSA-Algorithmus
+ * \param[in]	cos				Ausrichtung der Lane
+ * \param[in]	degLaneWidth	Lane-Breite in 1/10 µGrad
+ * \param[in]	degNodeGap		Abstand der Knotenpunkte in 1/10 µGrad
  * 
- * \return	xmlDocPtr, wenn Element gefunden
- * 			NULL, sonst
- */
-xmlDocPtr getGeoElement(intersectGeo ** table, uint32_t refID);
+*/
+void setOffsets(uint8_t * offsetA, uint8_t * offsetB, uint8_t *offsetC,
+				double cos, uint16_t degLaneWidth, uint16_t degNodeGap);
 
-/** \brief	Einmaliger Aufruf beim Start des Message Manager
- * 			Abfrage der MAP-Informationen auf der DB
+/** \brief	Fügt einen Client zur Liste registrierte MSQ-Clients hinzu
  * 
- * \param[in] con	MYSQL connect
+ * \param[in]	i		MSQ-ID des Clients
+ * \param[in]	clients	Liste der registrieten Clients
  * 
- * \return	intersectionGeometry Hash-Table
- */
-intersectGeo ** getGeoTable(MYSQL *con);
-
-/** \brief	Sucht eine Geometry-Element anhand der refID in der Hash-Table
- * 			Aktualisiert den Eintrag wenn vorhanden oder legt einen neuen an
- * 
- * \param[io] table		intersectionGeometry Hash-Table
- * \param[in] refID		IntersectionReferenceID
- * \param[in] timestamp	MinuteOfTheYear
- * \param[in] xml		IntersectionGeometry als wohlgformter XML-String
- * 
- * \return	void
- */
-void setGeoElement(intersectGeo ** table, uint32_t refID, char * timestamp, char * xml);
-
-/** \brief	Hash-Funktion
- * 
- * \param[in] refID		IntersectionReferenceID
- * 
- * \return	int Hash
- */
-int getHash(uint32_t refID);
-
-/** \brief Speicherfreigabe der IntersectionGeometry-Table
- * 
- * \param[in] ** hashTable	= zu leerende Hash
-  * 
- * \return	void
- */
-void freeGeoTable(intersectGeo ** hashTable);
-
-
+  \return		neue Liste 
+*/
 msqList * msqListAdd(int i, msqList * clients);
 
+/** \brief	Entfernt einen Client aus der Liste registrierter MSQ-Clients
+ * 
+ * \param[in]	i		MSQ-ID des Clients
+ * \param[in]	clients	Liste der registrieten Clients
+ *
+ * \return		neue Liste 
+*/
 msqList * msqListRemove(int i, msqList * clients);
 
+/** \brief	Verarbeitet Client-Registrierung für die Message-Queue
+ * 
+ * \param[in]	serverID	MSQ-ID des Servers
+ * \param[in]	clients		Liste der registrieten Clients
+ * 
+* \return		neue Liste
+*/
 msqList * setMsqClients(int serverID, msqList * clients);

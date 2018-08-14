@@ -17,7 +17,7 @@ xmlListHead * getxmlptrlist(char *pathname) {
 	if ((dir = opendir(pathname)) != NULL) {
 		while ((entry = readdir(dir)) != NULL) {
 			if (entry->d_type == DT_REG) {
-				xmlListElement *new = malloc(sizeof(xmlListElement));
+				xmlListElement * new = malloc(sizeof(xmlListElement));
 				new->next = NULL;
 				new->ptr  = NULL;
 				snprintf(docname, sizeof(docname), 
@@ -48,23 +48,9 @@ void freeList(xmlListHead * head) {
 void setMessage(int msgSocket, xmlDocPtr doc) {
 	int bufferSize;
 	xmlChar *xmlBuffer;
+	// String erzeugen
 	xmlDocDumpMemory(doc, &xmlBuffer, &bufferSize);
+	// Nachricht verschicken
 	setSocketContent(msgSocket, (char *) xmlBuffer, (long unsigned) bufferSize);
 	xmlFree(xmlBuffer);
-}
-
-void getTimestamp(int * moy, int * mSec) {
-	struct timeval tv;
-	time_t timeVal;
-	struct tm * timeLocal;
-	
-	time(&timeVal);
-	timeLocal = localtime(&timeVal);
-	
-	gettimeofday(&tv, NULL);
-	
-	*mSec = (tv.tv_usec / 1000) + (timeLocal->tm_sec * 1000);
-	
-	*moy = 	(24 * 60 * timeLocal->tm_yday) +
-			(60 * timeLocal->tm_hour) + timeLocal->tm_min;
 }

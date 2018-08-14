@@ -2,6 +2,7 @@
 #include <sys/wait.h>
 #include <signal.h>
 #include <fcntl.h>
+#include <sys/shm.h>
 
 #include <basic.h>
 #include <socket.h>
@@ -13,17 +14,70 @@
 #define REQ_AUTH	LIB_SAFARI"xml/client_manager/req_auth.xml"
 #define REQ_LOC 	LIB_SAFARI"xml/client_manager/req_loc.xml"
 
-#define MAX_LOGIN 10
-#define MAX_SERV 10
-#define MAX_LOC 10
-#define MAX_RUN 5
+#define MAX_LOGIN	10
+#define MAX_SERV	10
+#define MAX_LOC		10
+#define MAX_RUN		5
+#define MAX_HASH	20
 
+#define SPAT_TAG_START	"<SPAT>\n"
+#define SPAT_TAG_END	"\n</SPAT>"
+
+/** \brief	Intervallgrenzen */
+typedef struct {
+	int maxLong;
+	int maxLat;
+	int minLong;
+	int minLat;
+} delimeters;
+
+/** \brief	Geoposition */
+typedef struct {
+	int latitude;
+	int longitude;
+} location;
+
+/** \brief	Lane-Segment */
+typedef struct segStruct {
+	delimeters			borders;
+	struct segStruct	* next;
+} segStruct;
+
+/** \brief	Lane (Local Service Area)
+ * 
+ *	\param pos		Geo-Koordinate der Stopp-Linie
+ *	\param laneID	Eindeutige Identifizierung einer Lane
+ *	\param segments	Liste der Lane-Segmente
+ * 	\param next		Zeiger auf nächste Lane
+ * */
+typedef struct laneStruct {
+	location 			pos;
+	uint8_t				laneID;
+	segStruct			* segments;
+	struct laneStruct	* next;
+} laneStruct;
+
+/** \brief	Intersection (Global Service Area) */
+typedef struct interStruct {
+	uint32_t 			refID;
+	delimeters 			borders;
+	laneStruct 			* lanes;
+	struct interStruct	* next;
+} interStruct;
+
+/** \brief	Signal-Handler Pointer */
 typedef void (*sighandler_t)(int);
 
+/** \brief	Signal-Handler zum Beenden von Kindprozessen
+ * 
+ * \param[in]	intNr			z.B. SIGCHLD
+ * \param[in]	signalHandler	z.B. SIG_IGN
+ * 
+ *  \return sighandler_t
+ */
 sighandler_t mySignal(int sigNr, sighandler_t signalHandler);
 
-void noZombie(int sigNr);
-
+/** \brief	Service-Definition (2er Potenzen) */
 typedef enum service {
 	unreg	= 1,	// Client von Message-Queue abmelden
 	glosa	= 2,	// GLOSA
@@ -36,46 +90,58 @@ typedef enum service {
 					// die am Aufenthaltsort nicht angeboten werden!
 } Service;
 
+/** \brief	Fortbewegungsmittel (Berechnung der Update-Intervalle) */
 typedef enum moveType {
 	unkown,
-	feet,
+	motor,
 	bike,
-	motor
+	feet
 } moveType;
 
+/** \brief	Nachrichten-Element der Message Queue */
 typedef struct {
 	long prio;
 	char message[MSQ_LEN];
 } msqElement;
 
+/** \brief	Zeitpunkt der letzten Positions-Aktualisierung */
 typedef struct {
-	int latitude;
-	int longitude;
-} location;
+	int moy;
+	int mSec;
+	int timeGap;
+} timeStruct;
 
+/** \brief	Struktur für die Daten des Clients */
 typedef struct {
-	char name[50];
-	location pos;
-	uint8_t serviceMask;
+	char 		 name[50];
+	location 	 pos;
+	timeStruct	 update;
+	uint16_t 	 region;
+	uint8_t 	 serviceMask;
 	unsigned int pid;
-	moveType type;
-	
+	moveType	 type;
 } clientStruct;
 
 /** \brief	Init Client bestehend aus Authentifizierung, 
  * 			Service- und Standortabfrage
  * 
  * \param[in]	clientSock	Socket des jeweiligen Client-Prozesses
+ * \param[in]	client		Client-Daten
  * 
- * \return	void
+ * \return	0 wenn OK, sonst 1
  */
 int setClientInit(int sock, clientStruct * client);
 
-/** \brief Authentifizierungs-Vorgang
+/** \brief	Sendet eine Nachricht an den Client und verarbeitet das Ergebnis
+ * 			in der übergebenen Funktion
  * 
- * \param[in]	clientSock	Socket des jeweiligen Client-Prozesses
+ * \param[in]	sock		Socket des jeweiligen Client-Prozesses
+ * \param[in]	retries		Anzahl der Neuversuche bei fehlerhafter Antwort
+ * \param[in]	func		Funktionspointer zur Verarbeitung der Antwort
+ * \param[in]	message		Nachricht an den Client
+ * \param[in]	client		Client-Struktur zum Speichern der Daten
  * 
- * \return	void
+ * \return	0 wenn OK, sonst 1
  */
 int getClientResponse(	int sock, int retries, 
 						int (* func) (char *, clientStruct *), 
@@ -90,7 +156,7 @@ int getClientResponse(	int sock, int retries,
  */
 int setClientAuth(char * msg, clientStruct * client);
 
-/** \brief Lokations-Daten aus einer Nachricht extrahieren und in der User-Struktur speichern
+/** \brief Lokations-Daten aus einer Nachricht extrahieren und in der Client-Struktur speichern
  * 
  * \param[in]	clientSock	Socket des jeweiligen Client-Prozesses
  * \param[in]	msg			Zu verarbeitende Nachricht
@@ -118,6 +184,87 @@ int setClientServices(char * msg, clientStruct * client);
  */
 int setClientResponse(char * msg, clientStruct * client);
 
+/** \brief 	Initialisiert die Client-Struktur
+ * 
+ * \param[in]	pid	   Prozess-ID
+  * 
+ * \return	clientStruct wenn OK, 0 sonst
+ */
 clientStruct * setClientStruct(unsigned int pid);
 
+/** \brief 	Bestätigte Client-Services in lesbarer Form (Logging)
+ * 
+ * \param[in]	servID	Siehe clientStruct \param serviceMask
+ * 
+ * \return	String der Services
+ */
 char * getServiceName(uint8_t servID);
+
+/** \brief 	Liefert eine Hash-Table aller Intersections eines Anbieters
+ * 
+ * \param[in]	region	Anbieter-ID
+ * 
+ * \return	Hash-Table wenn OK, sonst NULL
+ */
+interStruct ** getInterStructTable(uint16_t region);
+
+/** \brief 	Initialisiert eine interStruct inkl. Abfrage der Lanes und Lane-Segmente
+ * 
+ * \return	void
+ */
+interStruct * getInterStruct(MYSQL * db, uint16_t region, uint16_t id);
+
+/** \brief 	Setzt Region- und Intersection-ID zur IntersectionReferenceID
+ * 			zusammen und berechnet den hash
+ * 
+ * \param[in]	region	Dienstanbieter / Verkehrsbetrieb
+ * \param[in]	id		KreuzungsID
+ * \param[out]	refID	1. 16 Bit -> Anbieter / 2. 16 Bit -> Kreuzung
+ * \param[out]	hash	Berechneter Hash
+ * 
+ * \return	void
+ */
+void getHash(uint16_t region, uint16_t id, uint32_t * refID, uint8_t * hash);
+
+/** \brief 	Vergleicht Client-Position mit den Segmenten einer Lane (Local Service Area)
+ * 			und gibt bei einem Treffer eine Nachricht zurück
+ * 
+ * \param[in]	interTable	HashTable aller Intersections eines Anbieters
+ * \param[in]	msg			Nachricht vom Message Manager
+ * \param[in]	client		Client-Daten
+ * 
+ * \return Nachricht wenn Treffer, sonst NULL
+ */
+char * getClientMessage(interStruct ** interTable, char * msg, clientStruct * client);
+
+/** \brief	Aktualisiert bestimmte Intersections in der HashTable
+ * 
+ * \param[in]	interTable	HashTable aller Intersections eines Anbieters
+ * \param[in]	regions		Region- bzw- Anbieter-IDs
+ * \param[in]	ids			IntersectionIDs
+ *
+ */
+void setInterUpdate(interStruct ** interTable, char ** regions, char ** ids);
+
+/** \brief	Gibt den gesammten Speicher der Intersection-HashTable frei
+ * 
+ * \param[in]	interTable	HashTable aller Intersections eines Anbieters
+ *
+ */
+void freeInterTable(interStruct ** table);
+
+/** \brief	Gibt den Speicher eines Intersection-Elements in der HashTable frei
+ * 
+ * \param[in]	inter	Intersection-Element
+ *
+ */
+void freeInterStruct(interStruct * inter);
+
+/** \brief	Vergleicht die letzte Aktualisierung der Lokationsdaten mit der 
+ * 			Systemzeit in Abhängigkeit des Fortbewegungsmittels
+ * 
+ * \param[in]	client	Client-Daten
+ *
+ * \return 1 wenn neue Lokationsdaten benötigt werden, sonst 0
+ */
+uint8_t updateRequired(clientStruct * client);

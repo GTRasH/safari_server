@@ -28,7 +28,7 @@ char ** getNodeValue(xmlDocPtr doc, char * expression) {
 	}
 	xmlNodeSetPtr nodes = xpathObject->nodesetval;
 	size = (nodes) ? nodes->nodeNr : 0;
-	
+	// Keine Nodes mit gesuchtem Ausdruck gefunden
 	if (size == 0) {
 		xmlXPathFreeObject(xpathObject);
 		return NULL;
@@ -41,9 +41,10 @@ char ** getNodeValue(xmlDocPtr doc, char * expression) {
 		length	= (int)strlen(temp);
 		arr[i]	= calloc(length+1, sizeof(char));
 		strcpy(arr[i], temp);
-		arr[i][length] = '\0';
+		strcat(arr[i], TERM_NULL);
 		free(temp);
 	}
+	// Array abschließen
 	arr[size] = NULL;
 	xmlXPathFreeObject(xpathObject);
 	return arr;
@@ -83,4 +84,67 @@ xmlDocPtr getdoc(char *docname) {
 		return NULL;
 	}
 	return doc;
+}
+
+char ** getWellFormedXML(char ** trees) {
+	size_t xmlLength;
+	int count;
+	// Anzahl der Elemente ermitteln
+	for (count = 0; trees[count]; count++);
+	
+	char ** ret = calloc(count+1, sizeof(char *));
+	
+	for (int i = 0; i < count; i++) {
+		xmlLength	= strlen(trees[i]);
+		ret[i]		= calloc(xmlLength+XML_TAG_LEN+1, sizeof(char));
+		strcpy(ret[i], XML_TAG);
+		strcat(ret[i], trees[i]);
+	}
+	ret[count] = NULL;
+	return ret;
+}
+
+char ** getTree(xmlDocPtr message, char * tag) {
+	xmlXPathObjectPtr xpathObj;
+	xmlNodeSetPtr nodeSet;
+	xmlBufferPtr xmlBuff;
+	char ** array;
+	int cntNodes, dumpSize;
+	// Aufruf aller Knoten (Evaluierung mittels tag)
+	xpathObj = getNodes(message, tag);
+	nodeSet	 = xpathObj->nodesetval;
+	cntNodes = (nodeSet) ? nodeSet->nodeNr : 0;
+	if (cntNodes == 0) {
+		xmlXPathFreeNodeSet(nodeSet);
+		return NULL;
+	}
+	// erstellt für jeden gefundenen Tag einen XML-Doc-String
+	array = calloc(cntNodes+1, sizeof(char *));
+	for (int i = 0; i < cntNodes; ++i) {
+		xmlBuff	 = xmlBufferCreate();
+		dumpSize = xmlNodeDump(xmlBuff, message, nodeSet->nodeTab[i], 0, 0);
+		array[i] = calloc((dumpSize + 1), sizeof(char));
+		array[i] = strcpy(array[i], (char *) xmlBuff->content);
+		strcat(array[i], TERM_NULL);
+		xmlBufferFree(xmlBuff);
+	}
+	array[cntNodes] = NULL;	// Array sicher abgeschlossen
+	xmlXPathFreeObject(xpathObj);
+	return array;
+}
+
+int xmlContains(xmlDocPtr doc, char * expression) {
+	int result;
+	xmlNodeSetPtr nodes;
+	xmlXPathObjectPtr xpathObj;
+	xpathObj = getNodes(doc, expression);
+	if (xpathObj == NULL) {
+		xmlXPathFreeObject(xpathObj);
+		return 0;
+	}
+	nodes  = xpathObj->nodesetval;
+	result = (nodes) ? nodes->nodeNr : 0;
+	
+	xmlXPathFreeObject(xpathObj);
+	return result;
 }
