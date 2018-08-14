@@ -61,4 +61,11 @@ char ** getWellFormedXML(char ** trees);
  */
 char ** getTree(xmlDocPtr message, char * tag);
 
+/** \brief	Prüft, ob ein bestimmter Node im XML-Dokument enthalten ist
+ * 
+ * \param[in]	doc			XML-Dokument
+ * \param[in]	expression	gesuchter Node
+ *
+ * \return	Anzahl der Vorkommnisse 
+*/
 int xmlContains(xmlDocPtr doc, char * expression);

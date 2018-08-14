@@ -15,14 +15,6 @@ sighandler_t mySignal(int sigNr, sighandler_t signalHandler) {
 	return sigOld.sa_handler;
 }
 
-void noZombie(int sigNr) {
-	pid_t pid;
-	int ret;
-	while ((pid = waitpid(-1, &ret, WNOHANG)) > 0)
-		printf("Child-Server mit pid=%d hat sich beendet\n", pid);
-	return;
-}
-
 int setClientInit(int sock, clientStruct * client) {
 	int (*func) (char *, clientStruct *);
 	char * reqAuth, * reqServ, * reqLoc, logText[LOG_BUF];
@@ -190,9 +182,9 @@ int setClientAuth(char * msg, clientStruct * client) {
 	if (mysql_num_rows(dbResult) != 1)
 		sprintf(logText, "[%u]   Login failed\n", client->pid);
 	else {
+		strcpy(client->name, mysql_fetch_row(dbResult)[0]);
 		sprintf(logText, "[%s]   User '%s' successfully logged in\n",
 				client->name, client->name);
-		strcpy(client->name, mysql_fetch_row(dbResult)[0]);
 		result = 0;
 	}
 	setLogText(logText, LOG_CLIENT);

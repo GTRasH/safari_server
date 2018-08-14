@@ -28,7 +28,7 @@ char ** getNodeValue(xmlDocPtr doc, char * expression) {
 	}
 	xmlNodeSetPtr nodes = xpathObject->nodesetval;
 	size = (nodes) ? nodes->nodeNr : 0;
-	
+	// Keine Nodes mit gesuchtem Ausdruck gefunden
 	if (size == 0) {
 		xmlXPathFreeObject(xpathObject);
 		return NULL;
@@ -44,6 +44,7 @@ char ** getNodeValue(xmlDocPtr doc, char * expression) {
 		strcat(arr[i], TERM_NULL);
 		free(temp);
 	}
+	// Array abschließen
 	arr[size] = NULL;
 	xmlXPathFreeObject(xpathObject);
 	return arr;
@@ -88,7 +89,7 @@ xmlDocPtr getdoc(char *docname) {
 char ** getWellFormedXML(char ** trees) {
 	size_t xmlLength;
 	int count;
-	
+	// Anzahl der Elemente ermitteln
 	for (count = 0; trees[count]; count++);
 	
 	char ** ret = calloc(count+1, sizeof(char *));
@@ -117,7 +118,6 @@ char ** getTree(xmlDocPtr message, char * tag) {
 		xmlXPathFreeNodeSet(nodeSet);
 		return NULL;
 	}
-
 	// erstellt für jeden gefundenen Tag einen XML-Doc-String
 	array = calloc(cntNodes+1, sizeof(char *));
 	for (int i = 0; i < cntNodes; ++i) {

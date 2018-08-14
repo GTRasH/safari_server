@@ -13,7 +13,7 @@ int getClientUDS(void) {
 	if (connect(socketFD, (struct sockaddr *) &address, sizeof(address)) == -1)
 		return -1;
 		
-	printf("Verbindung mit dem Server hergestellt\n");
+	printf("- Verbindung mit dem Simulator hergestellt\n");
 	return socketFD;
 }
 
@@ -31,23 +31,6 @@ int getServerUDS(struct sockaddr_un * address, socklen_t * addrlen) {
 	if (connect(socketFD, (struct sockaddr *) &address, sizeof(address)) == 0)
 		printf("Verbindung mit dem Server hergestellt\n");
 		
-	return socketFD;
-}
-
-int getTCPSocket(struct sockaddr_in * address, socklen_t * addrlen) {
-	const int y = 1;
-	int socketFD;
-	
-	if ((socketFD = socket(PF_INET, SOCK_STREAM, 0)) < 0)
-		setError("TCP Socket für Client Manager konnte nicht angelegt werden\n", 1);
-
-	address->sin_family	= AF_INET;
-	address->sin_port	= htons(PORT);
-	
-	memset(&address->sin_addr, 0, sizeof(address->sin_addr));
-	
-	setsockopt(socketFD, SOL_SOCKET, SO_REUSEADDR, &y, sizeof(int));
-	
 	return socketFD;
 }
 
@@ -71,8 +54,6 @@ void setSocketConnect(socket_t *sock, char *serv_addr, unsigned short port) {
 		memcpy((char *)&server.sin_addr, &addr, sizeof(addr));
 	}
 	else {
-		/* Für den Fall der Fälle: Wandle den Servernamen
-		* z. B. "localhost" in eine IP-Adresse um */
 		host_info = gethostbyname( serv_addr );
 		if (NULL == host_info) 
 			setError("Unknown server", 1); 
@@ -101,7 +82,7 @@ void setSocketListen(socket_t *sock ) {
 		setError("Error while listen() : ", 1);
 }
 
-void setSocketAccept(socket_t *socket, socket_t *new_socket) {
+void setSocketAccept(socket_t * socket, socket_t * new_socket) {
 	struct sockaddr_in client;
 	unsigned int len;
 	char logText[LOG_BUF];
@@ -135,16 +116,12 @@ char * getSocketContent(socket_t sock) {
 	char buf[MSG_BUF+1];
 	char * string = calloc(1, sizeof(char));
 	bufSize = 1;
-	
+	// Socket auslesen
 	do {
-		//if ((
-		recvBytes = recv(sock, buf, MSG_BUF, 0);	//) <= 0) {
-//			free(string);
-//			return NULL;
-//		}
+		recvBytes 	   = recv(sock, buf, MSG_BUF, 0);
 		buf[recvBytes] = '\0';
-		bufSize	 += recvBytes;
-		string	  = realloc(string, sizeof(char) * bufSize);
+		bufSize	 	  += recvBytes;
+		string	  	   = realloc(string, sizeof(char) * bufSize);
 		strcat(string, buf);
 	} while (strlen(buf) > 0);
 

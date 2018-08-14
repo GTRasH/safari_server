@@ -48,7 +48,9 @@ void freeList(xmlListHead * head) {
 void setMessage(int msgSocket, xmlDocPtr doc) {
 	int bufferSize;
 	xmlChar *xmlBuffer;
+	// String erzeugen
 	xmlDocDumpMemory(doc, &xmlBuffer, &bufferSize);
+	// Nachricht verschicken
 	setSocketContent(msgSocket, (char *) xmlBuffer, (long unsigned) bufferSize);
 	xmlFree(xmlBuffer);
 }

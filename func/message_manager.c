@@ -31,15 +31,14 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 	MYSQL_BIND bind[12];
 	MYSQL * dbCon = sqlConnect("safari");
 	
+	// Nachricht enthält keine IntersectionGeometry-Elemente
+	if (!xmlContains(message, "//IntersectionGeometry"))
+		return 1;
+
 	// Aktualisierungs-Benachrichtung für die Clients vorbereiten
 	strcpy(clientNotify, XML_TAG);
 	strcat(clientNotify, "<mapUpdate>\n");
-	// Jedes Element von geometry ist ein gültiger XML-String
-	if (!xmlContains(message, "//IntersectionGeometry"))
-		return 1;
-	
-	temp = getTree(message, "//IntersectionGeometry");
-	
+
 	// Datenbank für Segment-Update vorbereiten
 	sprintf(queryStmt,"%s", "INSERT INTO segments "
 							"(region, id, laneID, segID, maxLong, maxLat, minLong, minLat) "
@@ -51,9 +50,10 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 	setInsertParam(bind, &region, &id, &laneID, &segID, &maxLong, &maxLat, &minLong, &minLat);
 	mysql_stmt_bind_param(stmt, bind);
 
+	// IntersectionGeometry-Elemente abarbeiten
+	temp	 = getTree(message, "//IntersectionGeometry");
 	xmlInter = getWellFormedXML(temp);
 	freeArray(temp);
-
 	for (int i = 0; *(xmlInter+i); i++) {
 		xmlInterDoc	 = xmlReadMemory(*(xmlInter+i), strlen(*(xmlInter+i)), NULL, NULL, 0);
 		// IntersectionReferenceID, refPoint oder laneWidth nicht gefunden -> nächste Intersection
@@ -73,7 +73,7 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 		region		 = (uint16_t)strtol(*(strRegion),NULL,10);
 		id			 = (uint16_t)strtol(*(strId),NULL,10);
 		laneWidth	 = (int)strtol(*(strLaneWidth),NULL,10);
-		// Höhe der Kreuzung
+		// Höhe der Kreuzung berechnen
 		if (!xmlContains(xmlInterDoc, "//refPoint/elevation"))
 			elevation = 0;
 		else {
@@ -143,7 +143,7 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 					nodeWidth	 = (uint16_t)strtol(*(strNodeWidth),NULL,10) + laneWidth;
 					freeArray(strNodeWidth);
 				}
-				// Als ersten NodeXY wird der Referenzpunkt (Node-LLmD-64b) erwartet
+				// Als erstes NodeXY-Element wird der Referenzpunkt (Node-LLmD-64b) erwartet
 				if (k == 0) {
 					// Kein Node-LLmD-64b Element -> Abbruch der Lane-Segment-Abarbeitung
 					if (!(xmlContains(xmlNodeDoc, "//node-LatLon/lon") && xmlContains(xmlNodeDoc, "//node-LatLon/lat"))) {
@@ -161,11 +161,11 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 							"ON DUPLICATE KEY UPDATE longitude = '%i', "
 							"latitude = '%i'", region, id, laneID, 
 							nodeLong, nodeLat, nodeLong, nodeLat);
-							
-					if (mysql_query(dbCon, query))
-						sqlError(dbCon);
+
 					freeArray(strNodeLong);
 					freeArray(strNodeLat);
+					if (mysql_query(dbCon, query))
+						sqlError(dbCon);
 				}
 				else
 				{
@@ -221,20 +221,19 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 }
 
 int processSPAT(xmlDocPtr message, msqList * clients, uint8_t test) {
-	int res;
+	int mSecSys, moySys;
 	xmlDocPtr ptrSPAT;
-	char ** stateRaw, ** stateXML, ** moy, ** mSec;
+	char ** stateRaw, ** stateXML, ** moy, ** mSec, logText[LOG_BUF];
 	msqList * clientPtr;
 	msqElement s2c;
 
-	// Erzeuge ein Array aus IntersectionState-Elementen
-	if ((stateRaw = getTree(message, "//IntersectionState")) == NULL) {
-		freeArray(stateRaw);
+	if (!xmlContains(message, "//IntersectionState"))
 		return 1;
-	}
+	// Erzeuge ein Array aus IntersectionState-Elementen
+	stateRaw = getTree(message, "//IntersectionState");
 	stateXML = getWellFormedXML(stateRaw);
 	freeArray(stateRaw);
-	
+	// Abarbeitung der IntersectionState-Elemente
 	for (int i = 0; *(stateXML+i); ++i) {
 		clientPtr = clients;
 		// Schleifenabbruch wenn keine Clients registriert sind und Testing deaktiviert
@@ -245,38 +244,42 @@ int processSPAT(xmlDocPtr message, msqList * clients, uint8_t test) {
 
 		// TESTING - Zeitstempel auf Konsole ausgeben
 		if (test & 1) {
-			moy	 = getNodeValue(ptrSPAT, "//moy");
-			mSec = getNodeValue(ptrSPAT, "//timeStamp");
+			if (!(xmlContains(ptrSPAT, "//moy") && xmlContains(ptrSPAT, "//timeStamp")))
+				printf ("Testing für eine SPaT-Nachricht fehlgeschlagen"
+						"- Nachricht enthält kein moy- oder timeStamp-Element!\n");
+				
+			else {
+				getTimestamp(&moySys, &mSecSys);
+				moy	 = getNodeValue(ptrSPAT, "//moy");
+				mSec = getNodeValue(ptrSPAT, "//timeStamp");
 			
-			printf ("IntersectionState mit moy = %s und mSec = %s verarbeitet\n",
-					*(moy), *(mSec));
+				printf ("IntersectionState empfangen: moy = %s  |  mSec = %s\n"
+						"Aktuelle Systemzeit: moy = %i  |  mSec = %i\n",
+						*(moy), *(mSec), moySys, mSecSys);
 					
-			freeArray(moy);
-			freeArray(mSec);
+				freeArray(moy);
+				freeArray(mSec);
+			}
 		}
+		// Versenden der Nachricht an registrierte Client-Prozesse
 		s2c.prio	= 2;
 		sprintf(s2c.message, "%s", *(stateXML+i));
 		while (clientPtr != NULL) {
-			res = msgsnd(clientPtr->id, &s2c, MSQ_LEN, 0);
-			if (res < 0)
-				printf ("Konnte Nachricht an Client MQ %d nicht zustellen\n",
-						clientPtr->id);
-			else
-				printf ("Nachricht an Client MQ %d zugestellt\n",
-						clientPtr->id);
-			  
+			if ((msgsnd(clientPtr->id, &s2c, MSQ_LEN, 0)) < 0) {
+				sprintf(logText,"Unable sending message to client MQ %d\n",clientPtr->id);
+				setLogText(logText, LOG_SERVER);
+			}
 			clientPtr = clientPtr->next;
 		}
 		xmlFreeDoc(ptrSPAT);
 	}
-	
 	freeArray(stateXML);
-	
 	return 0;
 }
 
 msqList * msqListAdd(int i, msqList * clients) {
    msqList * ptr;
+   // Liste ist leer -> neues Element an den Anfang
    if(clients == NULL) {
 		clients = malloc(sizeof( msqList ));
 		if (clients == NULL )
@@ -284,6 +287,7 @@ msqList * msqListAdd(int i, msqList * clients) {
 		clients->id = i;
 		clients->next = NULL;
    }
+   // Sonst neues Element an das Ende
    else
    {
 		ptr = clients;
@@ -300,14 +304,17 @@ msqList * msqListAdd(int i, msqList * clients) {
 msqList * msqListRemove(int i, msqList * clients) {
 	msqList * ptr_tmp;
 	msqList * ptr;
+	// Liste ist leer
 	if(clients == NULL)
 		return NULL;
+	// Gesuchter Client-Eintrag am Anfang der Liste
 	if( clients->id == i ) {
 		ptr = clients->next;
 		free(clients);
 		clients = ptr;
 		return clients;
 	}
+	// Client suchen und aushängen
 	ptr = clients;
 	while(ptr->next != NULL) {
 		ptr_tmp = ptr->next;
@@ -336,6 +343,7 @@ msqList * setMsqClients(int serverID, msqList * clients) {
 			sscanf(c2s.message,"%d",&clientID);
 			clients = msqListAdd(clientID, clients);
 		}
+		// Weitere Registrierungen für neue Dienste möglich !
 	}
 	return clients;
 }

@@ -4,20 +4,23 @@
 #include <sys/ipc.h>
 #include <sys/msg.h>
 #include <sys/ioctl.h>
-
 #include <arpa/inet.h>
-
 #include <netinet/in.h>
 #include <netdb.h>
-
 #include <unistd.h>
 
 #include <basic.h>
 
+/** \brief	Größe des Nachrichten Buffer */
 #define MSG_BUF 1024
+
+/** \brief	Datei für Unix Domain Socket */
 #define UDS_FILE "/tmp/safari_sim.sock"
+
+/** \brief	TCP-Port für Verbindungen zum Client Manager */
 #define PORT 15000
 
+/** \brief	Socket Typ */
 #define socket_t int
 
 /** \brief Liefert einen Unix Domain Socket für den Client (Message Manager)
@@ -37,15 +40,6 @@ int getClientUDS(void);
  * \return	int (sock_addr) wenn OK, sonst exit(1)
  */
 int getServerUDS(struct sockaddr_un * address, socklen_t * addrlen);
-
-/** \brief Liefert einen TCP Socket für den Server (Client Manager)
- * 
- * \param[out]	address		Pointer auf sockaddr_un
- * \param[out]	addrlen		Pointer auf socklen_t
- * 
- * \return	int (sock_addr) wenn OK, sonst exit(1)
- */
-int getTCPSocket(struct sockaddr_in * address, socklen_t * addrlen);
 
 /** \brief Liefert einen Socket für den Server
  * 
@@ -75,7 +69,7 @@ void setSocketBind(socket_t *sock, unsigned long address, unsigned short port);
  */
 void setSocketListen(socket_t *sock );
 
-/** \brief Verbindungsaufbau zum Server
+/** \brief Verbindungsaufbau zum Server - Nur für den lokalen Client (TESTING!)
  * 
  * \param[in]	sock
  * \param[in]	serv_addr
@@ -94,6 +88,19 @@ void setSocketConnect(socket_t *sock, char *serv_addr, unsigned short port);
  */
 void setSocketAccept(socket_t *sock, socket_t *newSock);
 
+/** \brief	Nachricht über einen Socket senden
+ * 
+ * \param[in]	sock	Socket
+ * \param[in]	message	Zu versendende Nachricht
+ * \param[in]	length	Nachrichten-Länge
+ * 
+ */
 void setSocketContent(socket_t sock, char * message, long unsigned length);
 
+/** \brief	Liest einen Socket aus und liefert den gesammten Inhalt als String
+ * 
+ * \param[in]	sock	Socket
+ * 
+ * \return	char * wenn OK, sonst NULL
+ */
 char * getSocketContent(socket_t sock);

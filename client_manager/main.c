@@ -3,8 +3,7 @@
  * 	#														#
  * 	#	Author:	Sebastian Neutsch							#
  * 	#	Mail:	sebastian.neutsch@t-online.de				#
- * 	#
- * 	#
+ * 	#														#
  * 	#########################################################
 */
 #include <basic.h>
@@ -16,30 +15,27 @@
 
 int main(void) {
 	int (*func) (char *, clientStruct *);
-
 	int clientID, serverID, res;
 	char logText[LOG_BUF], * clientMsg;
 	socket_t sockServer, sockClient;
 	clientStruct * client;
+	interStruct ** interTable;
+	msqElement c2s, s2c;
+	
+	// Socket einrichten
 	sockServer = getSocket(AF_INET, SOCK_STREAM, 0);
 	setSocketBind(&sockServer, INADDR_ANY, PORT);
 	setSocketListen(&sockServer);
-	
-	interStruct ** interTable;
-	
-	msqElement c2s, s2c;
-	
+	// SignalHandler registrieren
 	mySignal(SIGCHLD, SIG_IGN);
-
+	// Server-Schleife - setSocketAccept blockiert!
 	while (1) {
 		int pid;
-		
 		printf("Warte auf Verbindungsaufbau eines Clients ... \n");
-		
 		setSocketAccept(&sockServer, &sockClient);
-
 		pid = fork();
 		switch (pid) {
+			// Client-(Kind)prozess
 			case 0:
 				// Client-Struktur initialisieren
 				client = setClientStruct((unsigned int)getpid());
@@ -95,11 +91,12 @@ int main(void) {
 					while (1) {
 						res = msgrcv(clientID, &s2c, MSQ_LEN, 0, IPC_NOWAIT);
 						if (res != -1) {
-							printf("Nachricht vom Message Manager erhalten!\n");
 							// Verarbeitung der Nachricht vom Message Manager
 							clientMsg = getClientMessage(interTable, s2c.message, client);
+							// Client befindet sich auf einer Lane
 							if (clientMsg != NULL) {
 								func = setClientResponse;
+								// Sendet die Nachricht und erwartet ein Standort- oder Service-Update
 								if (getClientResponse(sockClient, MAX_RUN, func, clientMsg, client)) {
 									sprintf(logText, "[%s]   Client responses %i times with invalid data\n",
 											client->name, MAX_RUN);
@@ -109,9 +106,11 @@ int main(void) {
 								}
 								free(clientMsg);
 							}
+							// Neue Standortdaten benötigt
 							else if (updateRequired(client)) {
 								clientMsg = getFileContent(REQ_LOC);
 								func	  = setClientLocation;
+								// Sendet eine Standortanforderung
 								if (getClientResponse(sockClient, MAX_RUN, func, clientMsg, client)) {
 									sprintf(logText, "[%s]   Client responses %i times with invalid location\n",
 											client->name, MAX_RUN);
@@ -122,6 +121,7 @@ int main(void) {
 								free(clientMsg);
 							}
 						}
+						// System V Message-Queues bieten kein Notify, deshalb Polling
 						usleep(10000);
 					}
 					// Deregistrierung senden
@@ -130,16 +130,19 @@ int main(void) {
 					msgsnd (serverID, &c2s, MSQ_LEN, 0);
 					freeInterTable(interTable);
 				}
-				sprintf(logText, "[%u]   Client process terminated",
-						client->pid);
+				// Client-Prozess beenden
+				sprintf(logText, "[%u]   Client process terminated", client->pid);
 				setLogText(logText, LOG_CLIENT);
 				fflush(stdout);
 				close(sockClient);
 				exit(EXIT_SUCCESS);
 				break;
+
 			case -1:
-				setError("Error while fork() : ", 0);
+				sprintf(logText, "Unable to fork() !");
+				setLogText(logText, LOG_SERVER);
 				break;
+
 			default:
 				close(sockClient);
 				break;
