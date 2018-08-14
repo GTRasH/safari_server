@@ -522,27 +522,20 @@ char * getClientMessage(interStruct ** interTable, char * msg, clientStruct * cl
 						// Lanes abarbeiten
 						lanePtr = interPtr->lanes;
 						while (lanePtr != NULL) {
-							// Lane in der Liste != Lane in der Nachricht
+							// LaneID in der Liste != LaneID in der Nachricht
 							if (lanePtr->laneID != laneID) {
 								lanePtr = lanePtr->next;
 								continue;
 							} else {
-								printf("Prüfe die Lane-Segmente\n");
 								// Lane-Segmente prüfen
 								segPtr = lanePtr->segments;
-								printf ("client->pos.latitude = %i   | client.pos->longitude = %i\n",
-										client->pos.latitude, client->pos.longitude);
 								while (segPtr != NULL) {
-									printf ("segPtr->borders.maxLat = %i  | segPtr->borders.minLat = %i  |"
-											"segPtr->borders.maxLong = %i  | segPtr->borders.minLong = %i\n",
-											segPtr->borders.maxLat, segPtr->borders.minLat, segPtr->borders.maxLong, segPtr->borders.minLong);
 									// User befindet sich in einem Lane-Segment
 									if (client->pos.latitude <= segPtr->borders.maxLat &&
 										client->pos.latitude >= segPtr->borders.minLat &&
 										client->pos.longitude <= segPtr->borders.maxLong &&
 										client->pos.longitude >= segPtr->borders.minLong)
 										{
-											printf("Client befindet sich auf Lane %i\n", lanePtr->laneID);
 											laneMatch = 1;
 											// Nachricht vorbereiten
 											sprintf(clientMsg + strlen(clientMsg), "%s", *(interStates+i));
