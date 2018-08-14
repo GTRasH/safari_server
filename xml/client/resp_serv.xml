@@ -5,7 +5,7 @@
 		<response>service</response>
 	</header>
 	<data>
-		<cityID>1</cityID>
+		<cityID>0</cityID>
 		<movementType>1</movementType>	<!--
 											1 = feet
 											2 = bike
