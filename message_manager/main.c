@@ -62,7 +62,8 @@ int main (int argc, char * argv[]) {
 		// Client-Registrierungen bzw. -Deregistrierungen verarbeiten
 		clients = setMsqClients(serverID, clients);
 		// Nachricht vom Simulator empfangen
-		if ((message = getMessage(socketFD)) == NULL) {
+		message = getMessage(socketFD);
+		if (message == NULL) {
 			printf ("\n# # # Message Manager beendet # # #\n"
 					"- Fehler beim Empfangen einer Nachricht vom Simulator\n");
 			break;
@@ -95,9 +96,10 @@ int main (int argc, char * argv[]) {
 			default:	xmlFreeDoc(message);
 						fprintf(stderr,"Error: Nachricht mit unbekannter DSRCmsgID erhalten");
 		}
-		
 		xmlFreeDoc(message);
 		freeArray(msgId);
+		// Nachricht verarbeitet -> Simulator informieren
+		setSocketContent(socketFD, MSG_OK, strlen(MSG_OK));
 	}
 	// Löschen der Message-Queue
 	msgctl(serverID, IPC_RMID, NULL);

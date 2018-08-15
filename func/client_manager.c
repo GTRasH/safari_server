@@ -101,8 +101,7 @@ int getClientResponse(	int sock, int retries,
 			break;
 		}
 		// TESTING
-		//printf ("# # #   NACHRICHT VON CLIENT EMPFANGEN   # # #\n%s\n",
-		//		resp);
+		printf ("# # #   NACHRICHT VON CLIENT EMPFANGEN   # # #\n%s\n",resp);
 		result = func(resp, client);
 		free(resp);
 	} while (result && --retries);

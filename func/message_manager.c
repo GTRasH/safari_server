@@ -7,7 +7,6 @@ xmlDocPtr getMessage(int sock) {
 		free(msgBuf);
 		return NULL;
 	}
-
 	msgXML = xmlReadMemory(msgBuf, strlen(msgBuf), NULL, NULL, 0);
 	free(msgBuf);
 	return msgXML;
@@ -208,6 +207,7 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 		s2c.prio	= 2;
 		strcat(clientNotify, "</mapUpdate>");
 		strcat(clientNotify, TERM_NULL);
+		memset(s2c.message, 0, sizeof(s2c.message));
 		sprintf(s2c.message, "%s", clientNotify);
 		while (clientPtr != NULL) {
 			msgsnd(clientPtr->id, &s2c, MSQ_LEN, 0);
@@ -262,6 +262,7 @@ int processSPAT(xmlDocPtr message, msqList * clients, uint8_t test) {
 			}
 		}
 		// Versenden der Nachricht an registrierte Client-Prozesse
+		memset(s2c.message, 0, sizeof(s2c.message));
 		s2c.prio	= 2;
 		sprintf(s2c.message, "%s", *(stateXML+i));
 		while (clientPtr != NULL) {

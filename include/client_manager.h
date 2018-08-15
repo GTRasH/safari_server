@@ -14,10 +14,19 @@
 #define REQ_AUTH	LIB_SAFARI"xml/client_manager/req_auth.xml"
 #define REQ_LOC 	LIB_SAFARI"xml/client_manager/req_loc.xml"
 
+/** \brief	Maximale Anforderungen zur Authentifizierung */
 #define MAX_LOGIN	10
+
+/** \brief	Maximale Anforderungen für Services (während ClintInit) */
 #define MAX_SERV	10
+
+/** \brief	Maximale Anforderungen für Standortdaten (während ClientInit) */
 #define MAX_LOC		10
+
+/** \brief	Maximale Anforderungen für Standort- oder Servicedaten */
 #define MAX_RUN		5
+
+/** \brief	Maximale Einträge in der HashTable */
 #define MAX_HASH	20
 
 #define SPAT_TAG_START	"<SPAT>\n"

@@ -3,17 +3,17 @@
 #include <sys/stat.h>
 #include <signal.h>
 
-#include <mqueue.h>
-
 #include <basic.h>
 
-/* Magische Nummer */
+/**	\brief	Message Queue Schlüssel */
 #define KEY 1234L
-/* Begrenzung der Nachricht */
+
+/** \brief	Begrenzung der Nachricht */
 #define MSQ_LEN 8192
-/* Zugriffsrechte */
+
+/** \brief	Zugriffsrechte für Message Queue */
 #define PERM 0666
 #undef signal
 
-#define MSQ_REG_QUEUE "/mq_register"
-#define MSQ_MSG_QUEUE "/mq_messages"
+/** \brief	Wartezeit für Message Queue Abfrage in µs */
+#define MSQ_POLL 10000
