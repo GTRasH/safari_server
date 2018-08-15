@@ -15,7 +15,7 @@
 
 int main(void) {
 	int (*func) (char *, clientStruct *);
-	int clientID, serverID, res;
+	int clientID, serverID;
 	char logText[LOG_BUF], * clientMsg;
 	socket_t sockServer, sockClient;
 	clientStruct * client;
@@ -31,6 +31,7 @@ int main(void) {
 	// Server-Schleife - setSocketAccept blockiert!
 	while (1) {
 		int pid;
+		
 		printf("Warte auf Verbindungsaufbau eines Clients ... \n");
 		setSocketAccept(&sockServer, &sockClient);
 		pid = fork();
@@ -63,34 +64,21 @@ int main(void) {
 						exit(EXIT_FAILURE);
 					}
 					// Einrichtung der Message-Queue für Nachrichten vom Message Manager
-					printf("Getting client-message-queue... ");
-					if ((clientID = msgget(IPC_PRIVATE, PERM | IPC_CREAT)) < 0)
-						printf("Failed\n");
-					else
-						printf("Done\n");
+					clientID = msgget(IPC_PRIVATE, PERM | IPC_CREAT);
 					// Einrichten der Message-Queue für Nachrichten an den Message Manager
-					printf("Getting server-message-queue... ");
-					if ((serverID = msgget(KEY, 0)) < 0)
-						printf("Failed\n");
-					else
-						printf("Done\n");
+					serverID = msgget(KEY, 0);
+					// Registrierungsnachricht (eigene MSQ ID) an den Message Manager
+					memset(c2s.message, 0, sizeof(c2s.message));
 					c2s.prio = 2;
 					sprintf (c2s.message, "%d", clientID);
-					// Registrierungsnachricht (eigene MSQ ID) an den Message Manager
-					res = msgsnd (serverID, &c2s, MSQ_LEN, 0);
-					printf("Sending message queue registration... ");
-					if (res == -1)
-						printf("Failed\n");
-					else
-						printf("Done\n");
-					
+					msgsnd (serverID, &c2s, MSQ_LEN, 0);
+					// SAFARI für Client gestartet
 					sprintf(logText,"[%s]   Message queue registration done - SAFARI started\n",
 									client->name);
 					setLogText(logText, LOG_CLIENT);
 					// Nachrichten vom Message-Manager verarbeiten
 					while (1) {
-						res = msgrcv(clientID, &s2c, MSQ_LEN, 0, IPC_NOWAIT);
-						if (res != -1) {
+						if ((msgrcv(clientID, &s2c, MSQ_LEN, 0, IPC_NOWAIT)) != -1) {
 							// Verarbeitung der Nachricht vom Message Manager
 							clientMsg = getClientMessage(interTable, s2c.message, client);
 							// Client befindet sich auf einer Lane
@@ -121,8 +109,8 @@ int main(void) {
 								free(clientMsg);
 							}
 						}
-						// System V Message-Queues bieten kein Notify, deshalb Polling
-						usleep(10000);
+						// System V MSQs bieten kein Notify, deshalb Polling
+						usleep(MSQ_POLL);
 					}
 					// Deregistrierung senden
 					c2s.prio = 1;

@@ -10,9 +10,20 @@
 #include <unistd.h>
 
 #include <basic.h>
+#include <xml.h>
 
 /** \brief	Größe des Nachrichten Buffer */
 #define MSG_BUF 1024
+
+/** \brief	Maximale Größe einer Nachrichten (128 kB) */
+#define MSG_MAX 131072
+
+/** \brief	Bestätigung Message Manager -> Simulator */
+#define MSG_OK "ok"
+
+/** \brief	Wird gesendet, wenn die Nachrichtenlänge einem Vielfachen von
+			MSG_BUF entspricht -> Signalisiert dem Empfänger das Ende */
+#define MSG_EMPTY "\n"
 
 /** \brief	Datei für Unix Domain Socket */
 #define UDS_FILE "/tmp/safari_sim.sock"

@@ -2,7 +2,6 @@
 
 #include <basic.h>
 #include <socket.h>
-#include <xml.h>
 
 /** \brief	Pfad für MAP-Nachrichten */
 #define MAP_PATH	LIB_SAFARI"xml/map/"

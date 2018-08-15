@@ -99,31 +99,37 @@ void setSocketAccept(socket_t * socket, socket_t * new_socket) {
 }
 
 void setSocketContent(socket_t sock, char * message, long unsigned length) {
-	char * ptrStr = message;
-	int sentBytes, ptrAddr = 0;
+	char * msgPtr;
+	int sentByte, offset, modSize, bufSize;
+	offset	= 0;
+	msgPtr	= message;
+	modSize	= length % MSG_BUF;
 	// Übertragung des Strings in MSG_BUF großen Blöcken
-	while (ptrAddr < length) {
-		sentBytes = send(sock, ptrStr, MSG_BUF, 0);
-		ptrAddr	+= sentBytes;
-		ptrStr	= message+ptrAddr;
+	while (offset < length) {
+		// variable Buffer Größe zum Senden des letzten Chunks
+		bufSize  = ((offset+modSize) == length) ? modSize : MSG_BUF;
+		sentByte = send(sock, msgPtr, bufSize, 0);
+		offset	 += sentByte;
+		msgPtr	 = message + offset;
 	}
-	// Sende leeren String -> Ende-Signal für Empfänger
-	send(sock, TERM_NULL, 1, 0);
+	// Nachrichtenlänge ist ein Vielfaches von MSG_BUF
+	if (modSize == 0)
+		send(sock, MSG_EMPTY, 1, 0);
 }
 
 char * getSocketContent(socket_t sock) {
-	long unsigned recvBytes, bufSize;
-	char buf[MSG_BUF+1];
-	char * string = calloc(1, sizeof(char));
-	bufSize = 1;
+	long unsigned recvByte;
+	char buf[MSG_BUF+1], msgBuf[MSG_MAX];
+	char * msg	= NULL;
+	msgBuf[0]	= '\0';
 	// Socket auslesen
 	do {
-		recvBytes 	   = recv(sock, buf, MSG_BUF, 0);
-		buf[recvBytes] = '\0';
-		bufSize	 	  += recvBytes;
-		string	  	   = realloc(string, sizeof(char) * bufSize);
-		strcat(string, buf);
-	} while (strlen(buf) > 0);
+		recvByte = recv(sock, buf, MSG_BUF, MSG_EOR);
+		buf[recvByte] = '\0';
+		sprintf(msgBuf + strlen(msgBuf), "%s", buf);
 
-	return string;
+	} while (recvByte == MSG_BUF);
+	msg = malloc(strlen(msgBuf)+1);
+	strcpy(msg, msgBuf);
+	return msg;
 }
