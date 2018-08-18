@@ -22,7 +22,8 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 	int elevation, interOffset, interMaxLong, interMaxLat, interMinLong,
 		interMinLat, nodeLong, nodeLat, maxLong, maxLat, minLong, minLat;
 	double microDegree;
-	uint16_t region, id, laneWidth, nodeWidth, offsetX, offsetY;
+	uint16_t region, id, laneWidth, nodeWidth;
+	int16_t offsetX, offsetY;
 	uint8_t laneID, segID, segSkip, update = 0;
 	msqList * clientPtr;
 	msqElement s2c;
@@ -175,8 +176,8 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 					}
 					strOffsetX	= getNodeValue(xmlNodeDoc, "//x");
 					strOffsetY	= getNodeValue(xmlNodeDoc, "//y");
-					offsetX		= (int)strtol(*(strOffsetX), NULL, 0);
-					offsetY		= (int)strtol(*(strOffsetY), NULL, 0);
+					offsetX		= (int16_t)strtol(*(strOffsetX), NULL, 10);
+					offsetY		= (int16_t)strtol(*(strOffsetY), NULL, 10);
 					setSegments(stmt, &segID, &maxLong, &maxLat, &minLong, 
 								&minLat, microDegree, nodeWidth, segSkip, 
 								nodeLong, nodeLat, offsetX, offsetY);
@@ -371,15 +372,23 @@ void setSegments(MYSQL_STMT * stmt, uint8_t * segID, int * maxLong,
 		return;
 	// Teilstücke in 1/10 µGrad
 	degNodeGap 	/= segments;
-	segments	-= skip;
 	// 0° <= Segment-Winkel < 90°
 	if (offsetX > 0 && offsetY >= 0) {
 		// 0° <= Segment-Winkel < 45° (Winkel zwischen Lane-Segment-Ausrichtung und Abzisse)
 		if ((cos = offsetX/nodeGap) > M_SQRT1_2) {
 			setOffsets(&offsetA, &offsetB, &offsetC, cos, degLaneWidth, degNodeGap);
-			// Initiale Referenzwerte
-			*maxLat  = nodeLat + (int)ceil(offsetC/2.0) + skip * offsetB;
-			*maxLong = nodeLong + skip * offsetA;
+			// # # # Initiale Referenzwerte # # #
+			// Im 1. Lane-Segment werden Teilstücke vom Start abgezogen
+			if (skip > 0) {
+				segments -= skip;
+				*maxLat  = nodeLat + (int)ceil(offsetC/2.0) + skip * offsetB;
+				*maxLong = nodeLong + skip * offsetA;
+			// In den Folgesegmenten an den Start hinzugefügt
+			} else {
+				segments += SEG_ADD;
+				*maxLat  = nodeLat + (int)ceil(offsetC/2.0) - (SEG_ADD * offsetB);
+				*maxLong = nodeLong - (SEG_ADD * offsetA);
+			}
 			// Grenzen für jedes Teilstück bestimmen
 			for (int i = 0; i < segments; i++) {
 				*maxLat	 = *maxLat + offsetB;
@@ -395,8 +404,15 @@ void setSegments(MYSQL_STMT * stmt, uint8_t * segID, int * maxLong,
 			// Winkel zwischen Lane-Segment-Ausrichtung und Ordinate
 			cos = offsetY/nodeGap;
 			setOffsets(&offsetA, &offsetB, &offsetC, cos, degLaneWidth, degNodeGap);
-			*maxLong = nodeLong + (int)ceil(offsetC/2.0) + skip * offsetB;
-			*maxLat	 = nodeLat + skip * offsetA;
+			if (skip > 0) {
+				segments -= skip;
+				*maxLong = nodeLong + (int)ceil(offsetC/2.0) + skip * offsetB;
+				*maxLat	 = nodeLat + skip * offsetA;
+			} else {
+				segments += SEG_ADD;
+				*maxLong = nodeLong + (int)ceil(offsetC/2.0) - (SEG_ADD * offsetB);
+				*maxLat	 = nodeLat - (SEG_ADD * offsetA);
+			}
 			for (int i = 0; i < segments; i++) {
 				*maxLong = *maxLong + offsetB;
 				*minLong = *maxLong - (offsetB + offsetC);
@@ -413,8 +429,15 @@ void setSegments(MYSQL_STMT * stmt, uint8_t * segID, int * maxLong,
 		if ((cos = abs(offsetX)/nodeGap) < M_SQRT1_2) {
 			cos = offsetY/nodeGap;
 			setOffsets(&offsetA, &offsetB, &offsetC, cos, degLaneWidth, degNodeGap);
-			*maxLat	 = nodeLat + skip * offsetA;
-			*minLong = nodeLong - ((int)ceil(offsetC/2.0) + skip * offsetB);
+			if (skip > 0) {
+				segments -= skip;
+				*maxLat	 = nodeLat + skip * offsetA;
+				*minLong = nodeLong - ((int)ceil(offsetC/2.0) + skip * offsetB);
+			} else {
+				segments += SEG_ADD;
+				*maxLat	 = nodeLat - (SEG_ADD * offsetA);
+				*minLong = nodeLong - (int)ceil(offsetC/2.0) + (SEG_ADD * offsetB);
+			}
 			for (int i = 0; i < segments; i++) {
 				*minLat	 = *maxLat;
 				*maxLat	 = *minLat + offsetA;
@@ -427,8 +450,15 @@ void setSegments(MYSQL_STMT * stmt, uint8_t * segID, int * maxLong,
 		// 135° <= Segment-Winkel < 180°
 		else {
 			setOffsets(&offsetA, &offsetB, &offsetC, cos, degLaneWidth, degNodeGap);
-			*minLong = nodeLong - skip * offsetA;
-			*maxLat	 = nodeLat + (int)ceil(offsetC/2.0) + skip * offsetB;
+			if (skip > 0) {
+				segments -= skip;
+				*minLong = nodeLong - skip * offsetA;
+				*maxLat	 = nodeLat + (int)ceil(offsetC/2.0) + skip * offsetB;
+			} else {
+				segments += SEG_ADD;
+				*minLong = nodeLong + SEG_ADD * offsetA;
+				*maxLat	 = nodeLat + (int)ceil(offsetC/2.0) - SEG_ADD * offsetB;
+			}
 			for (int i = 0; i < segments; i++) {
 				*maxLong = *minLong;
 				*minLong = *maxLong - offsetA;
@@ -444,8 +474,15 @@ void setSegments(MYSQL_STMT * stmt, uint8_t * segID, int * maxLong,
 		// 180° <= Segment-Winkel < 225°
 		if ((cos = abs(offsetX)/nodeGap) > M_SQRT1_2) {
 			setOffsets(&offsetA, &offsetB, &offsetC, cos, degLaneWidth, degNodeGap);
-			*minLat	 = nodeLat - ((int)ceil(offsetC/2.0) + skip * offsetB);
-			*minLong = nodeLong - skip * offsetA;
+			if (skip > 0) {
+				segments -= skip;
+				*minLat	 = nodeLat - ((int)ceil(offsetC/2.0) + skip * offsetB);
+				*minLong = nodeLong - skip * offsetA;
+			} else {
+				segments += SEG_ADD;
+				*minLat	 = nodeLat - (int)ceil(offsetC/2.0) + SEG_ADD * offsetB;
+				*minLong = nodeLong + SEG_ADD * offsetA;
+			}
 			for (int i = 0; i < segments; i++) {
 				*maxLong = *minLong;
 				*minLong = *maxLong - offsetA;
@@ -460,8 +497,15 @@ void setSegments(MYSQL_STMT * stmt, uint8_t * segID, int * maxLong,
 		else {
 			cos = abs(offsetY)/nodeGap;
 			setOffsets(&offsetA, &offsetB, &offsetC, cos, degLaneWidth, degNodeGap);
-			*minLong = nodeLong - ((int)ceil(offsetC/2.0) + skip * offsetB);
-			*minLat	 = nodeLat - skip * offsetA;
+			if (skip > 0) {
+				segments -= skip;
+				*minLong = nodeLong - ((int)ceil(offsetC/2.0) + skip * offsetB);
+				*minLat	 = nodeLat - skip * offsetA; 
+			} else {
+				segments += SEG_ADD;
+				*minLong = nodeLong - (int)ceil(offsetC/2.0) + SEG_ADD * offsetB;
+				*minLat	 = nodeLat + SEG_ADD * offsetA;
+			}
 			for (int i = 0; i < segments; i++) {
 				*minLong = *minLong - offsetB;
 				*maxLong = *minLong + offsetB + offsetC;
@@ -478,8 +522,15 @@ void setSegments(MYSQL_STMT * stmt, uint8_t * segID, int * maxLong,
 		if ((cos = offsetX/nodeGap) < M_SQRT1_2) {
 			cos = abs(offsetY)/nodeGap;
 			setOffsets(&offsetA, &offsetB, &offsetC, cos, degLaneWidth, degNodeGap);
-			*maxLong = nodeLong + (int)ceil(offsetC/2.0) + skip * offsetB;
-			*minLat	 = nodeLat - skip * offsetA;
+			if (skip > 0) {
+				segments -= skip;
+				*maxLong = nodeLong + (int)ceil(offsetC/2.0) + skip * offsetB;
+				*minLat	 = nodeLat - skip * offsetA;
+			} else {
+				segments += SEG_ADD;
+				*maxLong = nodeLong + (int)ceil(offsetC/2.0) - SEG_ADD * offsetB;
+				*minLat	 = nodeLat + SEG_ADD * offsetA;
+			}
 			for (int i = 0; i < segments; i++) {
 				*maxLong = *maxLong + offsetB;
 				*minLong = *maxLong - (offsetB + offsetC);
@@ -492,8 +543,15 @@ void setSegments(MYSQL_STMT * stmt, uint8_t * segID, int * maxLong,
 		// 315° <= Segment-Winkel < 360°
 		else {
 			setOffsets(&offsetA, &offsetB, &offsetC, cos, degLaneWidth, degNodeGap);
-			*minLat	 = nodeLat - ((int)ceil(offsetC/2.0) + skip * offsetB);
-			*maxLong = nodeLong + skip * offsetA;
+			if (skip > 0) {
+				segments -= skip;
+				*minLat	 = nodeLat - ((int)ceil(offsetC/2.0) + skip * offsetB);
+				*maxLong = nodeLong + skip * offsetA;
+			} else {
+				segments += SEG_ADD;
+				*minLat	 = nodeLat - (int)ceil(offsetC/2.0) + SEG_ADD * offsetB;
+				*maxLong = nodeLong - SEG_ADD * offsetA;
+			}
 			for (int i = 0; i < segments; i++) {
 				*minLong = *maxLong;
 				*maxLong = *minLong + offsetA;

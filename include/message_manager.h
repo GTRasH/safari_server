@@ -13,11 +13,15 @@
 /** \brief	Mittlerer Erdradius nach WGS-84 in cm */
 #define WGS84_RAD 637100080
 
-/** \brief	Breite der Teilstücke eines Lane-Segments in cm */
+/** \brief	Ungefähre Breite der Teilstücke eines Lane-Segments in cm.
+			Der konkrete Wert richtet sich nach der Länge des Segments */
 #define SEG_PART 200
 
 /** \brief	Teilstücke die ab der Stopp-Linie übersprungen werden */
-#define SEG_SKIP 2
+#define SEG_SKIP 0
+
+/** \brief	Teilstücke die an den Beginn eines Folge-Segments gesetzt werden */
+#define SEG_ADD 0
 
 /** \brief Element für MAP-Nachrichten in Hash-Table */
 typedef struct intersectGeo {
