@@ -475,36 +475,46 @@ char * getClientMessage(interStruct ** interTable, char * msg, clientStruct * cl
 	interStruct * interPtr;
 	laneStruct	* lanePtr;
 	segStruct	* segPtr;
-	char ** interStates, ** strRegion, ** strID, ** strLaneID, clientMsg[MSQ_LEN];
+	char ** interStates, ** strRegion, ** strID, ** strLaneID, clientMsg[MSQ_LEN],
+		 ** strStamp, ** strMoy;
+	int moy, mSec;
 	uint32_t refID;
 	uint16_t region, id;
 	uint8_t laneID, hash, laneMatch = 0;
-	xmlMsg		= xmlReadMemory(msg, strlen(msg), NULL, NULL, 0);
+	xmlMsg = xmlReadMemory(msg, strlen(msg), NULL, NULL, 0);
 	// # # #   SPaT-Nachricht   # # #
 	if (xmlContains(xmlMsg, "//IntersectionState")) {
 		interStates = getTree(xmlMsg, "//IntersectionState");
 		sprintf(clientMsg, "%s%s", XML_TAG, SPAT_TAG_START);
 		// IntersectionStates abarbeiten
 		for (int i = 0; *(interStates + i); i++) {
-			// Werte auslesen
-			xmlState  = xmlReadMemory(*(interStates+i), strlen(*(interStates+i)),NULL,NULL,0);
-			strRegion = getNodeValue(xmlState, "//id/region");
-			strID	  = getNodeValue(xmlState, "//id/id");
-			strLaneID = getNodeValue(xmlState, "//LaneID");
-			if (strID == NULL || strRegion == NULL || strLaneID == NULL) {
-				freeArray(strRegion);
-				freeArray(strLaneID);
-				freeArray(strID);
+			xmlState = xmlReadMemory(*(interStates+i), strlen(*(interStates+i)),NULL,NULL,0);
+			// IntersectionState enthält nicht die erforderlichen Werte
+			if (!(xmlContains(xmlState, "//moy") && xmlContains(xmlState, "//timeStamp") &&
+				  xmlContains(xmlState, "//id/region") && xmlContains(xmlState, "//id/id") &&
+				  xmlContains(xmlState, "//LaneID"))) {
+
 				xmlFreeDoc(xmlState);
 				continue;
 			}
-			region = (uint16_t)strtol(*(strRegion),NULL,10);
-			id	   = (uint16_t)strtol(*(strID),NULL,10);
-			laneID = (uint8_t)strtol(*(strLaneID),NULL,10);
-			freeArray(strRegion);
-			freeArray(strLaneID);
-			freeArray(strID);
-			xmlFreeDoc(xmlState);
+			// Prüft das Alter der SPaT-Nachricht
+			strMoy	 = getNodeValue(xmlState, "//moy");
+			strStamp = getNodeValue(xmlState, "//timeStamp");
+			moy		 = (int)strtol(*(strMoy), NULL, 10);
+			mSec	 = (int)strtol(*(strStamp), NULL, 10);
+			if (spatObsolete(moy, mSec)) {
+				freeArray(strStamp);
+				freeArray(strMoy);
+				xmlFreeDoc(xmlState);
+				continue;
+			}
+			// Auslesen der erforderlichen Daten
+			strRegion = getNodeValue(xmlState, "//id/region");
+			strID	  = getNodeValue(xmlState, "//id/id");
+			strLaneID = getNodeValue(xmlState, "//LaneID");
+			region 	  = (uint16_t)strtol(*(strRegion),NULL,10);
+			id	   	  = (uint16_t)strtol(*(strID),NULL,10);
+			laneID 	  = (uint8_t)strtol(*(strLaneID),NULL,10);
 			// Intersection-Liste aufrufen
 			getHash(region, id, &refID, &hash);
 			interPtr = interTable[hash];
@@ -549,6 +559,13 @@ char * getClientMessage(interStruct ** interTable, char * msg, clientStruct * cl
 				} // eo if (interPtr->refID == refID)
 				interPtr = interPtr->next;
 			} // eo while (interPtr != NULL)
+			// Speicher freigeben
+			freeArray(strRegion);
+			freeArray(strLaneID);
+			freeArray(strStamp);
+			freeArray(strMoy);
+			freeArray(strID);
+			xmlFreeDoc(xmlState);
 		} // eo for (int i = 0; *(interStates + i); i++)
 		freeArray(interStates);
 		xmlFreeDoc(xmlMsg);
@@ -673,14 +690,33 @@ void freeInterTable(interStruct ** table) {
 }
 
 uint8_t updateRequired(clientStruct * client) {
-	int moy, mSec;
-	getTimestamp(&moy, &mSec);
-	if (client->update.moy == moy &&
-		(mSec - client->update.mSec) > client->update.timeGap)
-		return 1;
-	else if (client->update.moy != moy &&
-			  (60000 - client->update.mSec + mSec) > client->update.timeGap)
+	int timeGap;
+	// Zeitabstand berechnen
+	timeGap = getTimeGap(client->update.moy, client->update.mSec);
+	
+	if (timeGap > client->update.timeGap)
 		return 1;
 
 	return 0;
+}
+
+uint8_t spatObsolete(int moy, int mSec) {
+	int timeGap;
+	// Zeitabstand berechnen
+	timeGap = getTimeGap(moy, mSec);
+	
+	if (timeGap > SPAT_OBSOLETE)
+		return 1;
+
+	return 0;
+}
+
+int getTimeGap(int moy, int mSec) {
+	int sysMoy, sysMSec, timeGap;
+	getTimestamp(&sysMoy, &sysMSec);
+	timeGap = (moy == sysMoy) ?
+					sysMSec - mSec :
+					((sysMoy-moy) * MINUTE) - mSec + sysMSec;
+					
+	return timeGap;
 }

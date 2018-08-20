@@ -29,8 +29,18 @@
 /** \brief	Maximale Einträge in der HashTable */
 #define MAX_HASH	20
 
+/** \brief	Anzahl der Nachrichten in der Message-Queue */
+#define MAX_MSG		10
+
+/** \brief	Anfangs- und End-Tag einer SPaT Nachricht */
 #define SPAT_TAG_START	"<SPAT>\n"
 #define SPAT_TAG_END	"\n</SPAT>"
+
+/** \brief	Ablaufzeit für SPaT-Nachrichten in ms */
+#define SPAT_OBSOLETE 1000
+
+/** \brief	Eine Minute in ms */
+#define MINUTE 60000
 
 /** \brief	Intervallgrenzen */
 typedef struct {
@@ -277,3 +287,21 @@ void freeInterStruct(interStruct * inter);
  * \return 1 wenn neue Lokationsdaten benötigt werden, sonst 0
  */
 uint8_t updateRequired(clientStruct * client);
+
+/** \brief	Vergleicht den Zeitstempel eine SPaT Nachricht mit der Systemzeit
+ * 
+ * \param[in]	moy		Minute of the year
+ * \param[in]	mSec	ms der Minute
+ *
+ * \return 1 wenn Nachricht zu alt, sonst 0
+ */
+uint8_t spatObsolete(int moy, int mSec);
+
+/** \brief	Berechnet den Abstand der übergebenen Werte in der Systemzeit in ms
+ * 
+ * \param[in]	moy		Minute of the year
+ * \param[in]	mSec	ms der Minute
+ *
+ * \return	Abstand in ms
+ */
+int getTimeGap(int moy, int mSec);

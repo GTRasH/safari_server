@@ -22,8 +22,8 @@ int main (int argc, char * argv[]) {
 	int period = 1000000;	// µs für 1 Hz
 	double tmp;
 	int moy, mSec;
-
-	int count;
+	// TESTING
+	// int count = 0;
 	
 	// # # # Ggf. Nachrichtenfrequenz einstellen # # #
 	printf("# # # Simulator gestartet # # #\n");
@@ -70,9 +70,6 @@ int main (int argc, char * argv[]) {
 
 	while((msgSocket = accept(uds, (struct sockaddr *) &address, &addrlen)) >= 0) {
 		fprintf(stdout, "- Message Manager verbunden\n");
-	
-		count = 0;
-			
 		while(1) {
 			// SPaT Nachrichten senden
 			spatElement = spatHead->first;
@@ -88,8 +85,9 @@ int main (int argc, char * argv[]) {
 				free(strMSec);
 				
 				setMessage(msgSocket, spatElement->ptr);
-				printf	("SPaT Nachricht # %i versendet. Moy = %i mSec = %i\n",
-						++count, moy, mSec);
+				// TESTING
+				//printf ("SPaT Nachricht # %i versendet. Moy = %i mSec = %i\n",
+				//		++count, moy, mSec);
 				spatElement = spatElement->next;
 				usleep(period);
 			}
@@ -101,7 +99,8 @@ int main (int argc, char * argv[]) {
 				setNodeValue(mapElement->ptr, "//timeStamp", strMoy);
 				free(strMoy);
 				setMessage(msgSocket, mapElement->ptr);
-				printf("MAP Nachricht versendet\n");
+				// TESTING
+				// printf("MAP Nachricht versendet\n");
 				mapElement = mapElement->next;
 				usleep(period);
 			}
