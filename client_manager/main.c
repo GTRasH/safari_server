@@ -78,39 +78,37 @@ int main(void) {
 					setLogText(logText, LOG_CLIENT);
 					// Nachrichten vom Message-Manager verarbeiten
 					while (1) {
-						if ((msgrcv(clientID, &s2c, MSQ_LEN, 0, IPC_NOWAIT)) != -1) {
-							// Verarbeitung der Nachricht vom Message Manager
-							clientMsg = getClientMessage(interTable, s2c.message, client);
-							// Client befindet sich auf einer Lane
-							if (clientMsg != NULL) {
-								func = setClientResponse;
-								// Sendet die Nachricht und erwartet ein Standort- oder Service-Update
-								if (getClientResponse(sockClient, MAX_RUN, func, clientMsg, client)) {
-									sprintf(logText, "[%s]   Client responses %i times with invalid data\n",
-											client->name, MAX_RUN);
-									setLogText(logText, LOG_CLIENT);
-									free(clientMsg);
-									break;
-								}
+						// msgrcv blockiert bis Nachrichten vom Typ 2 (SPaT oder MAP-Update) eintreffen
+						msgrcv(clientID, &s2c, MSQ_LEN, 0, 0);
+						// Verarbeitung der Nachricht vom Message Manager
+						clientMsg = getClientMessage(interTable, s2c.message, client);
+						// Client befindet sich auf einer Lane
+						if (clientMsg != NULL) {
+							func = setClientResponse;
+							// Sendet die Nachricht und erwartet ein Standort- oder Service-Update
+							if (getClientResponse(sockClient, MAX_RUN, func, clientMsg, client)) {
+								sprintf(logText, "[%s]   Client responses %i times with invalid data\n",
+										client->name, MAX_RUN);
+								setLogText(logText, LOG_CLIENT);
 								free(clientMsg);
+								break;
 							}
-							// Neue Standortdaten benötigt
-							else if (updateRequired(client)) {
-								clientMsg = getFileContent(REQ_LOC);
-								func	  = setClientLocation;
-								// Sendet eine Standortanforderung
-								if (getClientResponse(sockClient, MAX_RUN, func, clientMsg, client)) {
-									sprintf(logText, "[%s]   Client responses %i times with invalid location\n",
-											client->name, MAX_RUN);
-									setLogText(logText, LOG_CLIENT);
-									free(clientMsg);
-									break;
-								}
-								free(clientMsg);
-							}
+							free(clientMsg);
 						}
-						// System V MSQs bieten kein Notify, deshalb Polling
-						usleep(MSQ_POLL);
+						// Neue Standortdaten benötigt
+						else if (updateRequired(client)) {
+							clientMsg = getFileContent(REQ_LOC);
+							func	  = setClientLocation;
+							// Sendet eine Standortanforderung
+							if (getClientResponse(sockClient, MAX_RUN, func, clientMsg, client)) {
+								sprintf(logText, "[%s]   Client responses %i times with invalid location\n",
+										client->name, MAX_RUN);
+								setLogText(logText, LOG_CLIENT);
+								free(clientMsg);
+								break;
+							}
+							free(clientMsg);
+						}
 					}
 					// Deregistrierung senden
 					c2s.prio = 1;
@@ -119,7 +117,7 @@ int main(void) {
 					freeInterTable(interTable);
 				}
 				// Client-Prozess beenden
-				sprintf(logText, "[%u]   Client process terminated", client->pid);
+				sprintf(logText, "[%u]   Client process terminated\n", client->pid);
 				setLogText(logText, LOG_CLIENT);
 				fflush(stdout);
 				close(sockClient);
@@ -127,7 +125,7 @@ int main(void) {
 				break;
 
 			case -1:
-				sprintf(logText, "Unable to fork() !");
+				sprintf(logText, "Unable to fork() !\n");
 				setLogText(logText, LOG_SERVER);
 				break;
 
