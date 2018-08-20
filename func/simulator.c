@@ -52,7 +52,6 @@ void setMessage(int msgSocket, xmlDocPtr doc) {
 	// String erzeugen
 	xmlDocDumpMemory(doc, &xmlBuffer, &bufferSize);
 	// Nachricht verschicken
-	printf("Nachrichtlänge: %lu\n", (long unsigned) bufferSize);
 	setSocketContent(msgSocket, (char *) xmlBuffer, (long unsigned) bufferSize);
 	xmlFree(xmlBuffer);
 	// Warte auf Bestätigung vom Message Manager (blockierender Aufruf!)

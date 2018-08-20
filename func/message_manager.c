@@ -211,7 +211,11 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 		memset(s2c.message, 0, sizeof(s2c.message));
 		sprintf(s2c.message, "%s", clientNotify);
 		while (clientPtr != NULL) {
-			msgsnd(clientPtr->id, &s2c, MSQ_LEN, 0);
+			msgsnd(clientPtr->id, &s2c, MSQ_LEN, IPC_NOWAIT);
+			// Client-MSQ wurde während der Verarbeitung gelöscht
+			if (errno == EIDRM)
+				clients = msqListRemove(clientPtr->id, clients);
+
 			clientPtr = clientPtr->next;
 		}
 	}
@@ -224,7 +228,7 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 int processSPAT(xmlDocPtr message, msqList * clients, uint8_t test) {
 	int mSecSys, moySys;
 	xmlDocPtr ptrSPAT;
-	char ** stateRaw, ** stateXML, ** moy, ** mSec, logText[LOG_BUF];
+	char ** stateRaw, ** stateXML, ** moy, ** mSec;
 	msqList * clientPtr;
 	msqElement s2c;
 
@@ -262,15 +266,21 @@ int processSPAT(xmlDocPtr message, msqList * clients, uint8_t test) {
 				freeArray(mSec);
 			}
 		}
+		// Die Nachricht ist zu groß für ein MSQ-Element
+		if (strlen(*(stateXML)) > MSQ_LEN) {
+			xmlFreeDoc(ptrSPAT);
+			continue;
+		}
 		// Versenden der Nachricht an registrierte Client-Prozesse
 		memset(s2c.message, 0, sizeof(s2c.message));
 		s2c.prio	= 2;
 		sprintf(s2c.message, "%s", *(stateXML+i));
 		while (clientPtr != NULL) {
-			if ((msgsnd(clientPtr->id, &s2c, MSQ_LEN, 0)) < 0) {
-				sprintf(logText,"Unable sending message to client MQ %d\n",clientPtr->id);
-				setLogText(logText, LOG_SERVER);
-			}
+			msgsnd(clientPtr->id, &s2c, MSQ_LEN, IPC_NOWAIT);
+			// Client-MSQ wurde während der Verarbeitung gelöscht
+			if (errno == EIDRM)
+				clients = msqListRemove(clientPtr->id, clients);
+
 			clientPtr = clientPtr->next;
 		}
 		xmlFreeDoc(ptrSPAT);

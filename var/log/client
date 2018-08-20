@@ -1,8 +1,0 @@
-2018/07/26 15:33:39	[accept]   Client connected from 127.0.0.1
-2018/07/26 15:33:39	[2157]   Client process started with pid 2157
-2018/07/26 15:33:39	[2157]   Receiving login data
-2018/07/26 15:33:39	[test]   User 'test' successfully logged in
-2018/07/26 15:33:40	[test]   Receiving vehicle type and service request
-2018/07/26 15:33:40	[test]   Verified services: GLOSA | placeholder #1
-2018/07/26 15:33:40	[test]   Selected movement type: feet
-2018/07/26 15:33:40	[test]   Message queue registration done - SAFARI started
