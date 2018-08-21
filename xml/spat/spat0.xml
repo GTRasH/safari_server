@@ -20,7 +20,7 @@
           <moy>0</moy>
           <timeStamp>0</timeStamp>
           <enabledLanes>
-            <LaneID>3</LaneID>
+            <LaneID>0</LaneID>
           </enabledLanes>
           <states>
             <MovementState>
@@ -31,13 +31,15 @@
                     <stop-And-Remain/>
                   </eventState>
                   <timing>
-                    <startTime>1234567890</startTime>
                     <minEndTime>1234567890</minEndTime>
                     <maxEndTime>1234567890</maxEndTime>
-                    <likelyTime>1234567890</likelyTime>
-                    <confidence>1234567890</confidence>
-                    <nextTime>1234567890</nextTime>
                   </timing>
+                  <speeds>
+                    <AdvisorySpeed>
+                      <type><greenwave/></type>
+                      <speed>5</speed>
+                    </AdvisorySpeed>
+                  </speeds>
                 </MovementEvent>
               </state-time-speed>
             </MovementState>
