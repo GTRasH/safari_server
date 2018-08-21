@@ -3,10 +3,6 @@
   <messageId>19</messageId>
   <value>
     <SPAT>
-      <!--Optional:-->
-      <timeStamp>0000000000</timeStamp>
-      <!--Optional:-->
-      <name>string</name>
       <intersections>
 		<IntersectionState>
           <id>
@@ -20,7 +16,7 @@
           <moy>0</moy>
           <timeStamp>0</timeStamp>
           <enabledLanes>
-            <LaneID>3</LaneID>
+            <LaneID>4</LaneID>
           </enabledLanes>
           <states>
             <MovementState>

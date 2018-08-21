@@ -1,6 +1,5 @@
 
 #include <sys/shm.h>
-#include <math.h>
 #include <basic.h>
 #include <socket.h>
 #include <xml.h>
@@ -9,9 +8,6 @@
 
 /** \brief	Kreuzungsbereich in m gemessen ab dem Mittelpunkt */
 #define INTER_AREA 300
-
-/** \brief	Mittlerer Erdradius nach WGS-84 in cm */
-#define WGS84_RAD 637100080
 
 /** \brief	Ungefähre Breite der Teilstücke eines Lane-Segments in cm.
 			Der konkrete Wert richtet sich nach der Länge des Segments */
@@ -80,14 +76,6 @@ int processSPAT(xmlDocPtr message, msqList * clients, uint8_t test);
  * \return	IntersectionReferenceID
  */
 uint32_t getReferenceID(xmlDocPtr xmlDoc);
-
-/** \brief	Berechnet 1/100 µGrad in Abhängigkeit der Höhe
- * 
- * \param[in] elevation	Geographische Höhe der Kreuzung
- * 
- * \return 1/100 µGrad
-*/
-double get100thMicroDegree(int elevation);
 
 /** \brief	Bindet die übergebenen Parameter zum Einfügen der Lane-Segmente
  * 

@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <math.h>
 
 #define LIB_SAFARI "/usr/local/share/safari_server/"
 #define LOG_CLIENT 	LIB_SAFARI"/var/log/client"
@@ -13,6 +14,9 @@
 #define LOG_BUF 256
 
 #define TERM_NULL "\0"
+
+/** \brief	Mittlerer Erdradius nach WGS-84 in cm */
+#define WGS84_RAD 637100080
 
 /** \brief Fehlerfunktion
  * 
@@ -71,3 +75,11 @@ char ** getSplitString(char * a_str, const char a_delim);
  * \param[out] mSec		ms
  */
 void getTimestamp(int * moy, int * mSec);
+
+/** \brief	Berechnet 1/100 µGrad in Abhängigkeit der Höhe
+ * 
+ * \param[in] elevation	Geographische Höhe der Kreuzung
+ * 
+ * \return 1/100 µGrad
+*/
+double get100thMicroDegree(int elevation);

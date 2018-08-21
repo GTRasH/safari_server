@@ -91,12 +91,12 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 		// Intersection auf der DB aktualisieren
 		sprintf	(query, 
 				"INSERT INTO intersections "
-				"(region, id, maxLong, maxLat, minLong, minLat) "
-				"VALUES ('%u', '%u', '%i', '%i', '%i', '%i') "
+				"(region, id, maxLong, maxLat, minLong, minLat, elevation) "
+				"VALUES ('%u', '%u', '%i', '%i', '%i', '%i', '%i') "
 				"ON DUPLICATE KEY UPDATE maxLong = '%i', maxLat = '%i', "
-				"minLong = '%i', minLat = '%i'", region, id, 
-				interMaxLong, interMaxLat, interMinLong, interMinLat, 
-				interMaxLong, interMaxLat, interMinLong, interMinLat);
+				"minLong = '%i', minLat = '%i', elevation = '%i'", region, id, 
+				interMaxLong, interMaxLat, interMinLong, interMinLat, elevation,
+				interMaxLong, interMaxLat, interMinLong, interMinLat, elevation);
 
 		if (mysql_query(dbCon, query))
 			sqlError(dbCon);
@@ -645,11 +645,4 @@ void setOffsets(uint8_t * offsetA, uint8_t * offsetB, uint8_t *offsetC,
 	*offsetA = (uint8_t)ceil(cos * degNodeGap);
 	*offsetB = (uint8_t)ceil(sqrt((degNodeGap*degNodeGap)-(*offsetA * *offsetA)));
 	*offsetC = (uint8_t)ceil(degLaneWidth/cos);
-}
-
-double get100thMicroDegree(int elevation) {
-	// Radiant für 1 cm
-	double rad = asin(100000000.0/(WGS84_RAD + elevation * 10));
-	// Umrechnung in 1/100 µGrad
-	return ((360/(2*M_PI)) * rad);
 }
