@@ -268,6 +268,15 @@ int setClientServices(char * msg, clientStruct * client) {
 		setLogText(logText, LOG_CLIENT);
 		client->type			= typeID;
 		client->update.timeGap *= typeID;
+		switch (typeID) {
+			case feet:	client->maxSpeed = speedFeet;
+						break;
+			case bike:	client->maxSpeed = speedBike;
+						break;
+			case motor:	client->maxSpeed = speedMotor;
+						break;
+			default: 	; break;
+		}
 	}
 	
 	mysql_free_result(dbResult);
@@ -288,6 +297,7 @@ clientStruct * setClientStruct(unsigned int pid) {
 	str->pos.longitude	= 0;
 	str->pid			= pid;
 	str->type			= unkown;
+	str->maxSpeed		= speedUnkown;
 	str->update.moy		= 0;
 	str->update.mSec	= 0;
 	str->update.timeGap = 1000;
@@ -355,7 +365,7 @@ interStruct ** getInterStructTable(uint16_t region) {
 		table[i] = NULL;
 
 	// Intersections des Anbieters abfragen
-	sprintf (query, "SELECT id, maxLong, maxLat, minLong, minLat "
+	sprintf (query, "SELECT id, maxLong, maxLat, minLong, minLat, elevation "
 					"FROM intersections "
 					"WHERE region = '%i'", region);
 	if (mysql_query (db, query))
@@ -378,6 +388,7 @@ interStruct ** getInterStructTable(uint16_t region) {
 		inter->borders.maxLat	= (int)strtol(rowInter[2], NULL, 10);
 		inter->borders.minLong	= (int)strtol(rowInter[3], NULL, 10);
 		inter->borders.minLat	= (int)strtol(rowInter[4], NULL, 10);
+		inter->elevation		= (int)strtol(rowInter[5], NULL, 10);
 		// Kollisions-Abfrage
 		if (table[hash] == NULL)
 			table[hash] = inter;
@@ -476,7 +487,7 @@ char * getClientMessage(interStruct ** interTable, char * msg, clientStruct * cl
 	laneStruct	* lanePtr;
 	segStruct	* segPtr;
 	char ** interStates, ** strRegion, ** strID, ** strLaneID, clientMsg[MSQ_LEN],
-		 ** strStamp, ** strMoy;
+		 ** strStamp, ** strMoy, * advise;
 	int moy, mSec;
 	uint32_t refID;
 	uint16_t region, id;
@@ -485,7 +496,7 @@ char * getClientMessage(interStruct ** interTable, char * msg, clientStruct * cl
 	// # # #   SPaT-Nachricht   # # #
 	if (xmlContains(xmlMsg, "//IntersectionState")) {
 		interStates = getTree(xmlMsg, "//IntersectionState");
-		sprintf(clientMsg, "%s%s", XML_TAG, SPAT_TAG_START);
+		sprintf(clientMsg, "%s%s", XML_TAG, spatStart);
 		// IntersectionStates abarbeiten
 		for (int i = 0; *(interStates + i); i++) {
 			xmlState = xmlReadMemory(*(interStates+i), strlen(*(interStates+i)),NULL,NULL,0);
@@ -545,9 +556,16 @@ char * getClientMessage(interStruct ** interTable, char * msg, clientStruct * cl
 										client->pos.longitude <= segPtr->borders.maxLong &&
 										client->pos.longitude >= segPtr->borders.minLong)
 										{
-											laneMatch = 1;
+											advise = getState(*(interStates+i), client, 
+															  lanePtr->pos.longitude, lanePtr->pos.latitude,
+															  interPtr->elevation, moy, mSec);
 											// Nachricht vorbereiten
-											sprintf(clientMsg + strlen(clientMsg), "%s", *(interStates+i));
+											if (advise != NULL) {
+												laneMatch = 1;
+												sprintf(clientMsg + strlen(clientMsg), "%s", advise);
+												printf("%s", clientMsg);
+												free(advise);
+											}
 											break;
 										}
 									segPtr = segPtr->next;
@@ -573,7 +591,7 @@ char * getClientMessage(interStruct ** interTable, char * msg, clientStruct * cl
 		if (laneMatch == 0)
 			return NULL;
 		else {
-			sprintf(clientMsg + strlen(clientMsg), "%s", SPAT_TAG_END);
+			sprintf(clientMsg + strlen(clientMsg), "%s", spatEnd);
 			char * ret = malloc(strlen(clientMsg)+1);
 			strcat(clientMsg, TERM_NULL);
 			strcpy(ret, clientMsg);
@@ -609,7 +627,7 @@ void setInterUpdate(interStruct ** interTable, char ** regions, char ** ids) {
 		getHash(region, id, &refID, &hash);
 		
 		// Intersections des Anbieters abfragen
-		sprintf (query, "SELECT maxLong, maxLat, minLong, minLat "
+		sprintf (query, "SELECT maxLong, maxLat, minLong, minLat, elevation "
 						"FROM intersections "
 						"WHERE region = '%u' && id = '%u'", region, id);
 		if (mysql_query (db, query))
@@ -628,7 +646,7 @@ void setInterUpdate(interStruct ** interTable, char ** regions, char ** ids) {
 		inter->borders.maxLat	= (int)strtol(rowInter[1], NULL, 10);
 		inter->borders.minLong	= (int)strtol(rowInter[2], NULL, 10);
 		inter->borders.minLat	= (int)strtol(rowInter[3], NULL, 10);
-		
+		inter->elevation		= (int)strtol(rowInter[4], NULL, 10);
 		// interTable[hash] ist noch leer
 		if ((interPtr = interTable[hash]) == NULL)
 			interTable[hash] = inter;
@@ -719,4 +737,80 @@ int getTimeGap(int moy, int mSec) {
 					((sysMoy-moy) * MINUTE) - mSec + sysMSec;
 					
 	return timeGap;
+}
+
+char * getState(char * state, clientStruct * client, int longitude, 
+				int latitude, int elevation, int moy, int mSec) {
+
+	char buf[MSQ_LEN] = XML_TAG;
+	xmlDocPtr xmlMsg, xmlAdvise;
+	// XML-String bilden
+	sprintf(buf + strlen(buf), "%s", state);
+	xmlMsg = xmlReadMemory(buf, strlen(buf), NULL, NULL, 0);
+	// Ampel nicht ROT oder GRÜN -> Keine Empfehlung
+	if (!(xmlContains(xmlMsg, "//stop-And-Remain") || 
+		  xmlContains(xmlMsg, "//permissive-Movement-Allowed"))) {
+		xmlFreeDoc(xmlMsg);
+		return NULL;
+	}
+	// Geschwindigkeitsempfehlung berechnen
+	else {
+		double offLong, offLat, microDeg, dist, timeLeft;
+		int degDist, msgTime, minEnd, maxEnd, advise, bufSize;
+		char ** strMinEnd, ** strMaxEnd, * strAdvise, * strTime, * tmp, * msg;
+		xmlChar * xmlBuf;
+		// Status-Zeiten nicht enthalten
+		if (!(xmlContains(xmlMsg, "//minEndTime") || xmlContains(xmlMsg, "//minEndTime"))) {
+			xmlFreeDoc(xmlMsg);
+			return NULL;
+		}
+		// Nachrichten-Zeit in 10-tel Sekunden ab der letzten Stunde umrechen
+		msgTime		= (moy % 60) * 600 + (mSec/100);
+		// Status-Zeiten auslesen
+		strMinEnd 	= getNodeValue(xmlMsg, "//minEndTime");
+		strMaxEnd 	= getNodeValue(xmlMsg, "//maxEndTime");
+		minEnd		= (int)strtol(*(strMinEnd), NULL, 10);
+		maxEnd		= (int)strtol(*(strMaxEnd), NULL, 10);
+		freeArray(strMinEnd);
+		freeArray(strMaxEnd);
+		timeLeft	= (minEnd+maxEnd)/2 - msgTime;
+		// Abstand zum Kreuzungspunkt berechnen (in 0.1 m)
+		offLong	 = (double)(longitude - client->pos.longitude);
+		offLat	 = (double)(latitude - client->pos.latitude);
+		degDist	 = (int)sqrt(offLong*offLong + offLat*offLat);
+		microDeg = get100thMicroDegree(elevation);
+		dist	 = (degDist/(microDeg/10))*10.0;
+		// Geschwindigkeitsempfehlung in 0.1 m/s
+		advise	 = getSpeedAdvise(client, dist, timeLeft);
+		// Rückgabe vorbereiten
+		strcpy(buf, XML_TAG);
+		strcat(buf, spatBody);
+		strTime   = int2string(timeLeft);
+		strAdvise = int2string(advise);
+		xmlAdvise = xmlReadMemory(buf, strlen(buf), NULL,NULL,0);
+		setNodeValue(xmlAdvise, "//likelyTime", strTime);
+		setNodeValue(xmlAdvise, "//speed", strAdvise);
+		free(strAdvise);
+		free(strTime);
+		// XML in String schreiben, DTD entfernen und String zurückgeben
+		xmlDocDumpMemory(xmlAdvise, &xmlBuf, &bufSize);
+		bufSize = bufSize - XML_TAG_LEN + 1;
+		tmp		= (char *)xmlBuf;
+		msg		= malloc(bufSize+1);
+		strcpy(msg, &tmp[XML_TAG_LEN-1]);
+		strcat(msg, TERM_NULL);
+		xmlFreeDoc(xmlAdvise);
+		xmlFreeDoc(xmlMsg);
+		xmlFree(xmlBuf);
+		return msg;
+	}
+}
+
+int getSpeedAdvise(clientStruct * client, double dist, double timeLeft) {
+	int advise;
+	advise	 = (int)dist/timeLeft;
+	// 50 m/s steht laut Spezifikation für eine nicht verfügbaren Empfehlung
+	if (advise > client->maxSpeed)
+		advise = 500;
+	return advise;
 }

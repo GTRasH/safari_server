@@ -32,15 +32,38 @@
 /** \brief	Anzahl der Nachrichten in der Message-Queue */
 #define MAX_MSG		10
 
-/** \brief	Anfangs- und End-Tag einer SPaT Nachricht */
-#define SPAT_TAG_START	"<SPAT>\n"
-#define SPAT_TAG_END	"\n</SPAT>"
-
 /** \brief	Ablaufzeit für SPaT-Nachrichten in ms */
 #define SPAT_OBSOLETE 1000
 
 /** \brief	Eine Minute in ms */
 #define MINUTE 60000
+
+/** \brief	Strings zum bilden der SPaT-Nachricht für den Client */
+const char * spatStart = "<SPAT>\n"
+						 " <intersections>\n  ";
+						 
+const char * spatEnd  =	" </intersections>\n"
+						"</SPAT>\n";
+
+const char * spatBody = "  <IntersectionState>\n"
+						"   <states>\n"
+						"    <MovementState>\n"
+						"     <state-time-speed>\n"
+						"      <MovementEvent>\n"
+						"       <timing>\n"
+						"        <likelyTime></likelyTime>\n"
+						"       </timing>\n"
+						"       <speeds>\n"
+						"        <AdvisorySpeed>\n"
+						"          <type><greenwave/></type>\n"
+						"         <speed></speed>\n"
+						"        </AdvisorySpeed>\n"
+						"       </speeds>\n"
+						"      </MovementEvent>\n"
+						"     </state-time-speed>\n"
+						"    </MovementState>\n"
+						"   </states>\n"
+						"  </IntersectionState>\n";
 
 /** \brief	Intervallgrenzen */
 typedef struct {
@@ -79,6 +102,7 @@ typedef struct laneStruct {
 /** \brief	Intersection (Global Service Area) */
 typedef struct interStruct {
 	uint32_t 			refID;
+	int					elevation;
 	delimeters 			borders;
 	laneStruct 			* lanes;
 	struct interStruct	* next;
@@ -117,6 +141,14 @@ typedef enum moveType {
 	feet
 } moveType;
 
+/** \brief	Maximale Geschwindigkeit eines Fortbewegungsmittels in 0.1m/s */
+typedef enum speedType {
+	speedUnkown	= 500,
+	speedMotor	= 139,	// 50 km/h
+	speedBike	= 70,	// 25 km/h
+	speedFeet	= 22	// 8 km/h
+} speedType;
+
 /** \brief	Nachrichten-Element der Message Queue */
 typedef struct {
 	long prio;
@@ -139,6 +171,7 @@ typedef struct {
 	uint8_t 	 serviceMask;
 	unsigned int pid;
 	moveType	 type;
+	speedType	 maxSpeed;
 } clientStruct;
 
 /** \brief	Init Client bestehend aus Authentifizierung, 
@@ -305,3 +338,30 @@ uint8_t spatObsolete(int moy, int mSec);
  * \return	Abstand in ms
  */
 int getTimeGap(int moy, int mSec);
+
+/** \brief	Liefert ein IntersectionState-Element mit Geschwindigkeitsempfehlung
+ * 
+ * \param[in]	state		IntersectionState
+ * \param[in]	client		Client-Daten
+ * \param[in]	longitude	Kreuzungspunkt Längengrad
+ * \param[in]	latitude	Kreuzungspunkt Höhengrad
+ * \param[in]	elevation	Höhe der Kreuzung
+ * \param[in]	moy			Nachrichtenzeitpunkt - Minute of the year
+ * \param[in]	mSec		Nachrichtenzeitpunkt - ms der Minute
+ *
+ * \return	IntersectionState wenn OK, sonst NULL
+ */
+char * getState(char * state, clientStruct * client, int longitude, 
+				int latitude, int elevation, int moy, int mSec);
+
+/** \brief	Berechnet die Geschwindigkeitsempfehlung in 0.1m/s
+ * 			Es wird keine zulässige Höchstgeschwindigkeiten berücksichtigt!
+ * 			-> Hier ist Optimierungspotenzial
+ * 
+ * \param[in]	client		Client-Daten
+ * \param[in]	dist		Errechnete Entfernung zur Kreuzung
+ * \param[in]	timeLeft	Restzeit der Ampelphase
+ * 
+ * \return	Geschwindigkeitsempfehlung wenn OK, sonst 500
+ */
+int getSpeedAdvise(clientStruct * client, double dist, double timeLeft);

@@ -3,7 +3,7 @@ EXT		= $(FUNC:%.o=./../func/%.o)
 OBJ		= main.o $(EXT)
 CC		= gcc
 CFLAGS	= -Wall -D_REENTRANT
-LDFLAGS	= -I./../include `xml2-config --cflags` `mysql_config --cflags` `xml2-config --libs` `mysql_config --libs`
+LDFLAGS	= -I./../include -lm `xml2-config --cflags` `mysql_config --cflags` `xml2-config --libs` `mysql_config --libs`
 
 main: $(OBJ)
 	$(CC) $(CFLAGS) -o main main.o $(FUNC) $(LDFLAGS)

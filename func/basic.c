@@ -132,3 +132,10 @@ void getTimestamp(int * moy, int * mSec) {
 	*moy  = (24 * 60 * timeLocal->tm_yday) +
 			(60 * timeLocal->tm_hour) + timeLocal->tm_min;
 }
+
+double get100thMicroDegree(int elevation) {
+	// Radiant für 1 cm
+	double rad = asin(100000000.0/(WGS84_RAD + elevation * 10));
+	// Umrechnung in 1/100 µGrad
+	return ((360/(2*M_PI)) * rad);
+}

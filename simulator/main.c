@@ -15,8 +15,8 @@
 int main (int argc, char * argv[]) {
 	xmlListHead * mapHead, * spatHead;
 	xmlListElement * mapElement, * spatElement;
-	int uds, msgSocket;
-	char * strMoy, * strMSec;
+	int uds, msgSocket, minEndTime, maxEndTime;
+	char * strMoy, * strMSec, * strMinEndTime, * strMaxEndTime;
 	socklen_t addrlen;
 	struct sockaddr_un address;
 	int period = 1000000;	// µs für 1 Hz
@@ -76,13 +76,23 @@ int main (int argc, char * argv[]) {
 			while (spatElement->ptr != NULL) {
 				// Zeitangabe aktualisieren
 				getTimestamp(&moy, &mSec);
-				strMoy	= int2string(moy);
-				strMSec	= int2string(mSec);
+				// Jeder Ampel-Status dauert noch 10s an
+				minEndTime 		= ((moy % 60) * 600 + (mSec/100)) + 10;
+				maxEndTime 		= minEndTime + 10;
+				strMinEndTime	= int2string(minEndTime);
+				strMaxEndTime	= int2string(maxEndTime);
+				strMoy			= int2string(moy);
+				strMSec			= int2string(mSec);
 				setNodeValue(spatElement->ptr, "//IntersectionState/moy", strMoy);
 				setNodeValue(spatElement->ptr, "//SPAT/timeStamp", strMoy);
 				setNodeValue(spatElement->ptr, "//IntersectionState/timeStamp", strMSec);
+				setNodeValue(spatElement->ptr, "//minEndTime", strMinEndTime);
+				setNodeValue(spatElement->ptr, "//maxEndTime", strMaxEndTime);
+				
 				free(strMoy);
 				free(strMSec);
+				free(strMinEndTime);
+				free(strMaxEndTime);
 				
 				setMessage(msgSocket, spatElement->ptr);
 				// TESTING
