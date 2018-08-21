@@ -77,7 +77,7 @@ int main (int argc, char * argv[]) {
 				// Zeitangabe aktualisieren
 				getTimestamp(&moy, &mSec);
 				// Jeder Ampel-Status dauert noch 10s an
-				minEndTime 		= ((moy % 60) * 600 + (mSec/100)) + 10;
+				minEndTime 		= ((moy % 60) * 600 + (mSec/100)) + STATUS_OFFSET;
 				maxEndTime 		= minEndTime + 10;
 				strMinEndTime	= int2string(minEndTime);
 				strMaxEndTime	= int2string(maxEndTime);

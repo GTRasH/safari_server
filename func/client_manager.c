@@ -496,7 +496,7 @@ char * getClientMessage(interStruct ** interTable, char * msg, clientStruct * cl
 	// # # #   SPaT-Nachricht   # # #
 	if (xmlContains(xmlMsg, "//IntersectionState")) {
 		interStates = getTree(xmlMsg, "//IntersectionState");
-		sprintf(clientMsg, "%s%s", XML_TAG, spatStart);
+		sprintf(clientMsg, "%s%s", XML_TAG, SPAT_START);
 		// IntersectionStates abarbeiten
 		for (int i = 0; *(interStates + i); i++) {
 			xmlState = xmlReadMemory(*(interStates+i), strlen(*(interStates+i)),NULL,NULL,0);
@@ -591,7 +591,7 @@ char * getClientMessage(interStruct ** interTable, char * msg, clientStruct * cl
 		if (laneMatch == 0)
 			return NULL;
 		else {
-			sprintf(clientMsg + strlen(clientMsg), "%s", spatEnd);
+			sprintf(clientMsg + strlen(clientMsg), "%s", SPAT_END);
 			char * ret = malloc(strlen(clientMsg)+1);
 			strcat(clientMsg, TERM_NULL);
 			strcpy(ret, clientMsg);
@@ -784,7 +784,7 @@ char * getState(char * state, clientStruct * client, int longitude,
 		advise	 = getSpeedAdvise(client, dist, timeLeft);
 		// Rückgabe vorbereiten
 		strcpy(buf, XML_TAG);
-		strcat(buf, spatBody);
+		strcat(buf, SPAT_BODY);
 		strTime   = int2string(timeLeft);
 		strAdvise = int2string(advise);
 		xmlAdvise = xmlReadMemory(buf, strlen(buf), NULL,NULL,0);

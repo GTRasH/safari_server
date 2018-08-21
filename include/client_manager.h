@@ -39,31 +39,17 @@
 #define MINUTE 60000
 
 /** \brief	Strings zum bilden der SPaT-Nachricht für den Client */
-const char * spatStart = "<SPAT>\n"
-						 " <intersections>\n  ";
+#define SPAT_START "<SPAT>\n <intersections>\n  "
 						 
-const char * spatEnd  =	" </intersections>\n"
-						"</SPAT>\n";
+#define SPAT_END  " </intersections>\n</SPAT>\n"
 
-const char * spatBody = "  <IntersectionState>\n"
-						"   <states>\n"
-						"    <MovementState>\n"
-						"     <state-time-speed>\n"
-						"      <MovementEvent>\n"
-						"       <timing>\n"
-						"        <likelyTime></likelyTime>\n"
-						"       </timing>\n"
-						"       <speeds>\n"
-						"        <AdvisorySpeed>\n"
-						"          <type><greenwave/></type>\n"
-						"         <speed></speed>\n"
-						"        </AdvisorySpeed>\n"
-						"       </speeds>\n"
-						"      </MovementEvent>\n"
-						"     </state-time-speed>\n"
-						"    </MovementState>\n"
-						"   </states>\n"
-						"  </IntersectionState>\n";
+#define SPAT_BODY "  <IntersectionState>\n   <states>\n    <MovementState>\n\
+     <state-time-speed>\n      <MovementEvent>\n       <timing>\n\
+        <likelyTime></likelyTime>\n       </timing>\n       <speeds>\n\
+        <AdvisorySpeed>\n          <type><greenwave/></type>\n\
+         <speed></speed>\n        </AdvisorySpeed>\n       </speeds>\n\
+      </MovementEvent>\n     </state-time-speed>\n    </MovementState>\n\
+   </states>\n  </IntersectionState>\n"
 
 /** \brief	Intervallgrenzen */
 typedef struct {
