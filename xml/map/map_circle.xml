@@ -21,8 +21,12 @@
           <laneWidth>300</laneWidth>
           <laneSet>
             <GenericLane>
-              <laneID>0</laneID>
-              <name>Helix-Lane</name>
+              <laneID>1</laneID>
+              <name>Circle-Lane</name>
+              <maneuvers>
+                <maneuverStraightAllowed/>
+                <maneuverRightAllowed/>
+              </maneuvers>
               <laneAttributes>
                 <directionalUse></directionalUse>
                 <sharedWith></sharedWith>
@@ -43,6 +47,16 @@
                     </delta>
                     <attributes>
 					  <dWidth></dWidth>
+					  <data>
+					    <speedLimits>
+					      <RegulatorySpeedLimit>
+							<type>
+							  <vehicleMaxSpeed></vehicleMaxSpeed>
+							</type>
+							<speed>139</speed>
+					      </RegulatorySpeedLimit>
+					    </speedLimits>
+					  </data>
                     </attributes>
                   </NodeXY>
                   <NodeXY>
@@ -83,6 +97,7 @@
                         <x>0</x>
                         <y>1000</y>
                       </node-XY6>
+                      
                     </delta>
                   </NodeXY>
                   <NodeXY>
@@ -100,6 +115,19 @@
                         <y>1000</y>
                       </node-XY6>
                     </delta>
+                    <attributes>
+					  <dWidth></dWidth>
+					  <data>
+					    <speedLimits>
+					      <RegulatorySpeedLimit>
+							<type>
+							  <vehicleMaxSpeed></vehicleMaxSpeed>
+							</type>
+							<speed>83</speed>
+					      </RegulatorySpeedLimit>
+					    </speedLimits>
+					  </data>
+                    </attributes>
                   </NodeXY>
                   <NodeXY>
                     <delta>
@@ -156,6 +184,19 @@
                         <y>-1000</y>
                       </node-XY6>
                     </delta>
+                    <attributes>
+					  <dWidth></dWidth>
+					  <data>
+					    <speedLimits>
+					      <RegulatorySpeedLimit>
+							<type>
+							  <vehicleMaxSpeed></vehicleMaxSpeed>
+							</type>
+							<speed>139</speed>
+					      </RegulatorySpeedLimit>
+					    </speedLimits>
+					  </data>
+                    </attributes>
                   </NodeXY>
                   <NodeXY>
                     <delta>

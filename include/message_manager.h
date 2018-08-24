@@ -91,8 +91,8 @@ uint32_t getReferenceID(xmlDocPtr xmlDoc);
  *
 */
 void setInsertParam(MYSQL_BIND * bind, uint16_t * region, uint16_t * id, 
-					uint8_t * laneID, uint8_t * segID, int * maxLong, 
-					int * maxLat, int * minLong, int * minLat);
+					uint8_t * laneID, uint16_t * partID, uint16_t * segID,
+					int * maxLong, int * maxLat, int * minLong, int * minLat);
 
 /** \brief	Berechnet die Lane-Segment und fügt sie in die segments-Table ein
  * 
@@ -111,7 +111,7 @@ void setInsertParam(MYSQL_BIND * bind, uint16_t * region, uint16_t * id,
  * \param[in]	offsetY		Offset-Wert in Y-Richtung (in cm)
  * 
 */
-void setSegments(MYSQL_STMT * stmt, uint8_t * segID, int * maxLong, 
+void setSegments(MYSQL_STMT * stmt, uint16_t * segID, int * maxLong, 
 				 int * maxLat, int * minLong, int * minLat, double microDeg, 
 				 uint16_t laneWidth, uint8_t skip, int nodeLong, int nodeLat, 
 				 int16_t offsetX, int16_t offsetY);

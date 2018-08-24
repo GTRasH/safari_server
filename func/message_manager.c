@@ -15,20 +15,21 @@ xmlDocPtr getMessage(int sock) {
 int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 	xmlDocPtr xmlInterDoc, xmlLaneDoc, xmlNodeDoc;
 	char ** strRegion, ** strId, ** strLaneId, ** interLong, ** interLat,
-		 ** strElevation, ** strLaneWidth, ** strNodeWidth,
+		 ** strElevation, ** strLaneWidth, ** strNodeWidth, ** strMaxSpeed,
 		 ** strNodeLong, ** strNodeLat, ** temp, ** xmlInter, ** xmlLane, 
 		 ** xmlNodes, ** strOffsetX, ** strOffsetY, query[Q_BUF], 
 		 interUpdate[MSG_BUF], clientNotify[MSG_BUF], queryStmt[Q_BUF];
 	int elevation, interOffset, interMaxLong, interMaxLat, interMinLong,
 		interMinLat, nodeLong, nodeLat, maxLong, maxLat, minLong, minLat;
 	double microDegree;
-	uint16_t region, id, laneWidth, nodeWidth;
+	uint16_t region, id, partID, segID, laneWidth, nodeWidth, dist, 
+			 maneuvers = 0, maxSpeed = 500;
 	int16_t offsetX, offsetY;
-	uint8_t laneID, segID, segSkip, update = 0;
+	uint8_t laneID, segSkip, update = 0;
 	msqList * clientPtr;
 	msqElement s2c;
 	MYSQL_STMT * stmt;
-	MYSQL_BIND bind[12];
+	MYSQL_BIND bind[13];
 	MYSQL * dbCon = sqlConnect("safari");
 	
 	// Nachricht enthält keine IntersectionGeometry-Elemente
@@ -41,13 +42,13 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 
 	// Datenbank für Segment-Update vorbereiten
 	sprintf(queryStmt,"%s", "INSERT INTO segments "
-							"(region, id, laneID, segID, maxLong, maxLat, minLong, minLat) "
-							"VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
+							"(region, id, laneID, partID, segID, maxLong, maxLat, minLong, minLat) "
+							"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) "
 							"ON DUPLICATE KEY UPDATE maxLong=?, maxLat=?, minLong=?, minLat=?");
 	stmt = mysql_stmt_init(dbCon);
 	mysql_stmt_prepare(stmt, queryStmt, strlen(queryStmt));
 	memset(bind, 0, sizeof(bind));
-	setInsertParam(bind, &region, &id, &laneID, &segID, &maxLong, &maxLat, &minLong, &minLat);
+	setInsertParam(bind, &region, &id, &laneID, &partID, &segID, &maxLong, &maxLat, &minLong, &minLat);
 	mysql_stmt_bind_param(stmt, bind);
 
 	// IntersectionGeometry-Elemente abarbeiten
@@ -122,9 +123,16 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 			// Keine laneID oder Nodes vorhanden -> nächste Lane
 			if (!(xmlContains(xmlLaneDoc, "//laneID") && xmlContains(xmlLaneDoc, "//NodeXY"))) {
 				xmlFreeDoc(xmlLaneDoc);
-				freeArray(strLaneId);
 				continue;
 			}
+			// Abfrage der erlaubten Manöver
+			if (xmlContains(xmlLaneDoc, "//maneuverStraightAllowed"))
+				maneuvers += 1;
+			if (xmlContains(xmlLaneDoc, "//maneuverLeftAllowed"))
+				maneuvers += 2;
+			if (xmlContains(xmlLaneDoc, "//maneuverRightAllowed"))
+				maneuvers += 4;
+				
 			segSkip	  = SEG_SKIP;
 			strLaneId = getNodeValue(xmlLaneDoc, "//laneID");
 			temp	  = getTree(xmlLaneDoc, "//NodeXY");
@@ -154,18 +162,18 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 					strNodeLat	= getNodeValue(xmlNodeDoc, "//node-LatLon/lat");
 					nodeLong	= (int)strtol(*(strNodeLong),NULL,10);
 					nodeLat		= (int)strtol(*(strNodeLat),NULL,10);
-					sprintf (query, 
-							"INSERT INTO lanes "
-							"(region, id, laneID, longitude, latitude) "
-							"VALUES ('%u', '%u', '%u', '%i', '%i') "
-							"ON DUPLICATE KEY UPDATE longitude = '%i', "
-							"latitude = '%i'", region, id, laneID, 
-							nodeLong, nodeLat, nodeLong, nodeLat);
-
+					dist		= 0;
 					freeArray(strNodeLong);
 					freeArray(strNodeLat);
-					if (mysql_query(dbCon, query))
-						sqlError(dbCon);
+					
+					// Zulässige Höchstgeschwindigkeit auf der Lane (1. Lane-Abschnitt)
+					if (!xmlContains(xmlNodeDoc, "//vehicleMaxSpeed"))
+						maxSpeed	= 500;
+					else {
+						strMaxSpeed = getNodeValue(xmlNodeDoc, "//speed");
+						maxSpeed	= (uint16_t)strtol(*(strMaxSpeed),NULL,10);
+						freeArray(strMaxSpeed);
+					}
 				}
 				else
 				{
@@ -178,15 +186,38 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 					strOffsetY	= getNodeValue(xmlNodeDoc, "//y");
 					offsetX		= (int16_t)strtol(*(strOffsetX), NULL, 10);
 					offsetY		= (int16_t)strtol(*(strOffsetY), NULL, 10);
+					partID		= k-1;
+					segID		= 0;
+					sprintf (query, 
+							"INSERT INTO lanes "
+							"(region, id, laneID, partID, distance, maxSpeed, longitude, latitude, maneuvers) "
+							"VALUES ('%u', '%u', '%u', '%u', '%i', '%i', '%i', '%i', '%u') "
+							"ON DUPLICATE KEY UPDATE distance = '%u', maxSpeed = '%u', "
+							"longitude = '%i', latitude = '%i', maneuvers = '%u'", region, id, laneID, partID, dist, 
+							maxSpeed, nodeLong, nodeLat, maneuvers, dist, maxSpeed, nodeLong, nodeLat, maneuvers);
+
+					if (mysql_query(dbCon, query))
+						sqlError(dbCon);
+					
 					setSegments(stmt, &segID, &maxLong, &maxLat, &minLong, 
 								&minLat, microDegree, nodeWidth, segSkip, 
 								nodeLong, nodeLat, offsetX, offsetY);
-					// neuer Referenzpunkt für den nächsten Node
+
+					// Abstand zum Referenzpunkt (Node-LLmD-64b) in cm
+					dist	 += (uint16_t)sqrt(offsetX*offsetX + offsetY*offsetY);
+					
 					segSkip	  = 0;
+					// neuer Referenzpunkt für den nächsten Node
 					nodeLong += (int)(microDegree*offsetX/100);
 					nodeLat	 += (int)(microDegree*offsetY/100);
 					freeArray(strOffsetX);
 					freeArray(strOffsetY);
+					// Zulässige Höchstgeschwindigkeit auf der Lane (weitere Lane-Abschnitte)
+					if (xmlContains(xmlNodeDoc, "//vehicleMaxSpeed")) {
+						strMaxSpeed = getNodeValue(xmlNodeDoc, "//speed");
+						maxSpeed	= (uint16_t)strtol(*(strMaxSpeed),NULL,10);
+						freeArray(strMaxSpeed);
+					}
 				}
 				xmlFreeDoc(xmlNodeDoc);
 			}
@@ -360,7 +391,7 @@ msqList * setMsqClients(int serverID, msqList * clients) {
 	return clients;
 }
 
-void setSegments(MYSQL_STMT * stmt, uint8_t * segID, int * maxLong, 
+void setSegments(MYSQL_STMT * stmt, uint16_t * segID, int * maxLong, 
 				 int * maxLat, int * minLong, int * minLat, double microDeg, 
 				 uint16_t laneWidth, uint8_t skip, int nodeLong, int nodeLat, 
 				 int16_t offsetX, int16_t offsetY) {
@@ -575,8 +606,8 @@ void setSegments(MYSQL_STMT * stmt, uint8_t * segID, int * maxLong,
 }
 
 void setInsertParam(MYSQL_BIND * bind, uint16_t * region, uint16_t * id, 
-					uint8_t * laneID, uint8_t * segID, int * maxLong, 
-					int * maxLat, int * minLong, int * minLat) {
+					uint8_t * laneID, uint16_t * partID, uint16_t * segID,
+					int * maxLong, int * maxLat, int * minLong, int * minLat) {
 
 	bind[0].buffer_type	 = MYSQL_TYPE_SHORT;
 	bind[0].buffer		 = (char *)region;
@@ -593,50 +624,55 @@ void setInsertParam(MYSQL_BIND * bind, uint16_t * region, uint16_t * id,
 	bind[2].is_null 	 = 0;
 	bind[2].length		 = 0;
 	
-	bind[3].buffer_type	 = MYSQL_TYPE_TINY;
-	bind[3].buffer		 = (char *)segID;
+	bind[3].buffer_type	 = MYSQL_TYPE_SHORT;
+	bind[3].buffer		 = (char *)partID;
 	bind[3].is_null 	 = 0;
 	bind[3].length		 = 0;
 	
-	bind[4].buffer_type	 = MYSQL_TYPE_LONG;
-	bind[4].buffer		 = (char *)maxLong;
+	bind[4].buffer_type	 = MYSQL_TYPE_SHORT;
+	bind[4].buffer		 = (char *)segID;
 	bind[4].is_null 	 = 0;
 	bind[4].length		 = 0;
 	
 	bind[5].buffer_type	 = MYSQL_TYPE_LONG;
-	bind[5].buffer		 = (char *)maxLat;
+	bind[5].buffer		 = (char *)maxLong;
 	bind[5].is_null 	 = 0;
 	bind[5].length		 = 0;
 	
 	bind[6].buffer_type	 = MYSQL_TYPE_LONG;
-	bind[6].buffer		 = (char *)minLong;
+	bind[6].buffer		 = (char *)maxLat;
 	bind[6].is_null 	 = 0;
 	bind[6].length		 = 0;
 	
 	bind[7].buffer_type	 = MYSQL_TYPE_LONG;
-	bind[7].buffer		 = (char *)minLat;
+	bind[7].buffer		 = (char *)minLong;
 	bind[7].is_null 	 = 0;
 	bind[7].length		 = 0;
 	
 	bind[8].buffer_type	 = MYSQL_TYPE_LONG;
-	bind[8].buffer		 = (char *)maxLong;
+	bind[8].buffer		 = (char *)minLat;
 	bind[8].is_null 	 = 0;
 	bind[8].length		 = 0;
 	
-	bind[9].buffer_type = MYSQL_TYPE_LONG;
-	bind[9].buffer		 = (char *)maxLat;
+	bind[9].buffer_type	 = MYSQL_TYPE_LONG;
+	bind[9].buffer		 = (char *)maxLong;
 	bind[9].is_null 	 = 0;
 	bind[9].length		 = 0;
 	
 	bind[10].buffer_type = MYSQL_TYPE_LONG;
-	bind[10].buffer		 = (char *)minLong;
+	bind[10].buffer		 = (char *)maxLat;
 	bind[10].is_null 	 = 0;
 	bind[10].length		 = 0;
 	
 	bind[11].buffer_type = MYSQL_TYPE_LONG;
-	bind[11].buffer		 = (char *)minLat;
+	bind[11].buffer		 = (char *)minLong;
 	bind[11].is_null 	 = 0;
 	bind[11].length		 = 0;
+	
+	bind[12].buffer_type = MYSQL_TYPE_LONG;
+	bind[12].buffer		 = (char *)minLat;
+	bind[12].is_null 	 = 0;
+	bind[12].length		 = 0;
 }
 
 void setOffsets(uint8_t * offsetA, uint8_t * offsetB, uint8_t *offsetC,
