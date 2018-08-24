@@ -26,6 +26,11 @@
               <laneID>6</laneID>
               <!--Optional:-->
               <name>string</name>
+              <maneuvers>
+                <maneuverStraightAllowed/>
+                <maneuverLeftAllowed/>
+                <maneuverRightAllowed/>
+              </maneuvers>
               <laneAttributes>
                 <directionalUse>
                   <!--Optional:-->

@@ -38,19 +38,32 @@
 /** \brief	Eine Minute in ms */
 #define MINUTE 60000
 
-/** \brief	Strings zum bilden der SPaT-Nachricht für den Client */
-#define SPAT_START "<SPAT>\n <intersections>\n  "
+/** \brief	Strings zum bilden der SAFARI-Nachricht für den Client */
+#define SAFARI_START "<SAFARI>\n"
+#define SAFARI_END "</SAFARI>\n"
+
+/** \brief	Strings zum bilden des SPaT-Teils der SAFARI-Nachricht */
+#define SPAT_START " <SPAT>\n  <intersections>\n  "
 						 
-#define SPAT_END  " </intersections>\n</SPAT>\n"
+#define SPAT_END  "  </intersections>\n </SPAT>\n"
 
-#define SPAT_BODY "  <IntersectionState>\n   <states>\n    <MovementState>\n\
-     <state-time-speed>\n      <MovementEvent>\n       <timing>\n\
-        <likelyTime></likelyTime>\n       </timing>\n       <speeds>\n\
-        <AdvisorySpeed>\n          <type><greenwave/></type>\n\
-         <speed></speed>\n        </AdvisorySpeed>\n       </speeds>\n\
-      </MovementEvent>\n     </state-time-speed>\n    </MovementState>\n\
-   </states>\n  </IntersectionState>\n"
+#define SPAT_BODY "  <IntersectionState>\n    <enabledLanes>\n     <LaneID></LaneID>\n\
+    </enabledLanes>\n    <states>\n     <MovementState>\n\
+      <state-time-speed>\n       <MovementEvent>\n        <timing>\n\
+         <likelyTime></likelyTime>\n        </timing>\n        <speeds>\n\
+         <AdvisorySpeed>\n           <type><greenwave>true</greenwave></type>\n\
+          <speed></speed>\n         </AdvisorySpeed>\n        </speeds>\n\
+       </MovementEvent>\n      </state-time-speed>\n     </MovementState>\n\
+    </states>\n   </IntersectionState>\n"
+    
+/** \brief	Strings zum bilden des MAP-Teils der SAFARI-Nachricht */
+#define MAP_START " <MAP>\n  <intersections>\n   <IntersectionGeometry>\n    <laneSet>\n"
 
+#define MAP_END "    </laneSet>\n   </IntersectionGeometry>\n  </intersections>\n </MAP>\n"
+
+#define MAP_BODY "     <GenericLane>\n      <laneID></laneID>\n      <maneuvers></maneuvers>\n\
+     </GenericLane>\n"
+    
 /** \brief	Intervallgrenzen */
 typedef struct {
 	int maxLong;
@@ -65,23 +78,41 @@ typedef struct {
 	int longitude;
 } location;
 
-/** \brief	Lane-Segment */
+/** \brief	Lane-Segment
+ *	\param 	borders		Intervallgrenzen des Segments
+ *	\param 	next		Pointer auf das nächste Segment
+ * */
 typedef struct segStruct {
 	delimeters			borders;
 	struct segStruct	* next;
 } segStruct;
 
+/** \brief	Lane-Abschnitte
+ * 
+ *	\param 	pos			Geo-Koordinate des Referenzpunktes
+ *	\param 	dist		Entfernung zur Stopp-Linie (in 0.1 m)
+ *	\param 	segments	Pointer auf die Segmente des Teilabschnittes
+ *	\param 	next		Pointer auf den nächsten Teilabschnitt
+ * 
+ * */
+typedef struct partStruct {
+	uint16_t			maxSpeed;
+	uint16_t			distance;
+	location			pos;
+	segStruct			* segments;
+	struct partStruct	* next;
+} partStruct;
+
 /** \brief	Lane (Local Service Area)
  * 
- *	\param pos		Geo-Koordinate der Stopp-Linie
  *	\param laneID	Eindeutige Identifizierung einer Lane
  *	\param segments	Liste der Lane-Segmente
  * 	\param next		Zeiger auf nächste Lane
  * */
 typedef struct laneStruct {
-	location 			pos;
 	uint8_t				laneID;
-	segStruct			* segments;
+	uint16_t			maneuvers;
+	partStruct			* parts;
 	struct laneStruct	* next;
 } laneStruct;
 
@@ -328,17 +359,17 @@ int getTimeGap(int moy, int mSec);
 /** \brief	Liefert ein IntersectionState-Element mit Geschwindigkeitsempfehlung
  * 
  * \param[in]	state		IntersectionState
+ * \param[in]	laneID		laneID
  * \param[in]	client		Client-Daten
- * \param[in]	longitude	Kreuzungspunkt Längengrad
- * \param[in]	latitude	Kreuzungspunkt Höhengrad
+ * \param[in]	part		Lane-Abschnitt
  * \param[in]	elevation	Höhe der Kreuzung
  * \param[in]	moy			Nachrichtenzeitpunkt - Minute of the year
  * \param[in]	mSec		Nachrichtenzeitpunkt - ms der Minute
  *
  * \return	IntersectionState wenn OK, sonst NULL
  */
-char * getState(char * state, clientStruct * client, int longitude, 
-				int latitude, int elevation, int moy, int mSec);
+char * getState(char * state, uint8_t laneID, clientStruct * client, 
+				partStruct * part, int elevation, int moy, int mSec);
 
 /** \brief	Berechnet die Geschwindigkeitsempfehlung in 0.1m/s
  * 			Es wird keine zulässige Höchstgeschwindigkeiten berücksichtigt!
@@ -350,4 +381,12 @@ char * getState(char * state, clientStruct * client, int longitude,
  * 
  * \return	Geschwindigkeitsempfehlung wenn OK, sonst 500
  */
-int getSpeedAdvise(clientStruct * client, double dist, double timeLeft);
+int getSpeedAdvise(clientStruct * client, double dist, double timeLeft, int maxSpeed);
+
+/** \brief	Liefert den Map-Teil einer Safari-Nachricht
+ * 
+ * \param[in]	lane	Lane-Daten
+ * 
+ * \return char *
+ */
+char * getMapBody(laneStruct * lane);

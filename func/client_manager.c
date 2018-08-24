@@ -412,7 +412,10 @@ interStruct * getInterStruct(MYSQL * db, uint16_t region, uint16_t id) {
 	
 	interStruct * inter;
 	laneStruct 	* lane, * lanePtr;
+	partStruct 	* part, * partPtr;
 	segStruct	* seg, * segPtr;
+	// Lane-ID 255 ist reserviert! (SAEJ2735)
+	uint8_t rowLaneID, laneID = 255;
 
 	char query[Q_BUF];
 	inter		 = malloc(sizeof(interStruct));
@@ -420,7 +423,7 @@ interStruct * getInterStruct(MYSQL * db, uint16_t region, uint16_t id) {
 	inter->lanes = NULL;
 	
 	// Fahrspuren (Lanes) der Intersection abfragen
-	sprintf (query, "SELECT laneID, longitude, latitude "
+	sprintf (query, "SELECT laneID, partID, longitude, latitude, distance, maxSpeed, maneuvers "
 					"FROM lanes "
 					"WHERE region = '%u' && id = '%u'",
 					region, id);
@@ -431,25 +434,47 @@ interStruct * getInterStruct(MYSQL * db, uint16_t region, uint16_t id) {
 		return NULL;
 	}
 	while ((rowLane = mysql_fetch_row(resLane))) {
+		rowLaneID = (int)strtol(rowLane[0],NULL,10);
 		// neues Lane-Element anlegen
-		lane				= malloc(sizeof(laneStruct));
-		lane->next			= NULL;
-		lane->segments		= NULL;
-		lane->laneID		= (int)strtol(rowLane[0],NULL,10);
-		lane->pos.longitude	= (int)strtol(rowLane[1],NULL,10);
-		lane->pos.latitude	= (int)strtol(rowLane[2],NULL,10);
-		if (inter->lanes == NULL) {
-			inter->lanes = lane;
-			lanePtr		 = lane;
-		} else {
-			lanePtr->next = lane;
-			lanePtr		  = lanePtr->next;
+		if (rowLaneID != laneID) {
+			laneID		 	= rowLaneID;
+			lane		 	= malloc(sizeof(laneStruct));
+			lane->next	 	= NULL;
+			lane->parts	 	= NULL;
+			lane->laneID 	= laneID;
+			lane->maneuvers	= (uint16_t)strtol(rowLane[6],NULL,10);
+		
+			if (inter->lanes == NULL) {
+				inter->lanes = lane;
+				lanePtr		 = lane;
+			} else {
+				lanePtr->next = lane;
+				lanePtr		  = lanePtr->next;
+			}
 		}
-		// Lane-Segmente abfragen
+		// neuen Lane-Abschnitt anlegen
+		part				= malloc(sizeof(partStruct));
+		part->next			= NULL;
+		part->segments		= NULL;
+		part->pos.longitude	= (int)strtol(rowLane[2],NULL,10);
+		part->pos.latitude	= (int)strtol(rowLane[3],NULL,10);
+		part->distance		= (int)strtol(rowLane[4],NULL,10);
+		part->maxSpeed		= (int)strtol(rowLane[5],NULL,10);
+		
+		if (lane->parts == NULL) {
+			lane->parts = part;
+			partPtr		= part;
+		} else {
+			partPtr->next = part;
+			partPtr		  = partPtr->next;
+		}
+		// Segmente der Lane-Abschnitte abfragen
 		sprintf (query, "SELECT maxLong, maxLat, minLong, minLat "
 						"FROM segments "
-						"WHERE region = '%u' && id = '%u' && laneID = '%i'",
-						region, id, lane->laneID);
+						"WHERE region = '%u' && id = '%u'"
+						" && laneID = '%i' && partID = '%s'",
+						region, id, lane->laneID, rowLane[1]);
+
 		if (mysql_query (db, query))
 			sqlError(db);
 		if ((resSeg = mysql_store_result(db)) == NULL) {
@@ -466,8 +491,8 @@ interStruct * getInterStruct(MYSQL * db, uint16_t region, uint16_t id) {
 			seg->borders.maxLat	 = (int)strtol(rowSeg[1],NULL,10);
 			seg->borders.minLong = (int)strtol(rowSeg[2],NULL,10);
 			seg->borders.minLat	 = (int)strtol(rowSeg[3],NULL,10);
-			if (lane->segments == NULL) {
-				lane->segments  = seg;
+			if (part->segments == NULL) {
+				part->segments  = seg;
 				segPtr			= seg;
 			} else {
 				segPtr->next = seg;
@@ -485,9 +510,10 @@ char * getClientMessage(interStruct ** interTable, char * msg, clientStruct * cl
 	xmlDocPtr xmlMsg, xmlState;
 	interStruct * interPtr;
 	laneStruct	* lanePtr;
+	partStruct	* partPtr;
 	segStruct	* segPtr;
-	char ** interStates, ** strRegion, ** strID, ** strLaneID, clientMsg[MSQ_LEN],
-		 ** strStamp, ** strMoy, * advise;
+	char ** interStates, ** strRegion, ** strID, ** strLaneID, msgSpat[MSQ_LEN],
+		 msgMap[MSQ_LEN], msgClient[MSQ_LEN], ** strStamp, ** strMoy, * advise, * map;
 	int moy, mSec;
 	uint32_t refID;
 	uint16_t region, id;
@@ -496,7 +522,10 @@ char * getClientMessage(interStruct ** interTable, char * msg, clientStruct * cl
 	// # # #   SPaT-Nachricht   # # #
 	if (xmlContains(xmlMsg, "//IntersectionState")) {
 		interStates = getTree(xmlMsg, "//IntersectionState");
-		sprintf(clientMsg, "%s%s", XML_TAG, SPAT_START);
+		// Clientnachricht vorbereiten
+		sprintf(msgClient, "%s%s", XML_TAG, SAFARI_START);
+		sprintf(msgSpat, "%s", SPAT_START);
+		sprintf(msgMap, "%s", MAP_START);
 		// IntersectionStates abarbeiten
 		for (int i = 0; *(interStates + i); i++) {
 			xmlState = xmlReadMemory(*(interStates+i), strlen(*(interStates+i)),NULL,NULL,0);
@@ -547,31 +576,39 @@ char * getClientMessage(interStruct ** interTable, char * msg, clientStruct * cl
 								lanePtr = lanePtr->next;
 								continue;
 							} else {
-								// Lane-Segmente prüfen
-								segPtr = lanePtr->segments;
-								while (segPtr != NULL) {
-									// User befindet sich in einem Lane-Segment
-									if (client->pos.latitude <= segPtr->borders.maxLat &&
-										client->pos.latitude >= segPtr->borders.minLat &&
-										client->pos.longitude <= segPtr->borders.maxLong &&
-										client->pos.longitude >= segPtr->borders.minLong)
-										{
-											advise = getState(*(interStates+i), client, 
-															  lanePtr->pos.longitude, lanePtr->pos.latitude,
-															  interPtr->elevation, moy, mSec);
-											// Nachricht vorbereiten
-											if (advise != NULL) {
-												laneMatch = 1;
-												sprintf(clientMsg + strlen(clientMsg), "%s", advise);
-												printf("%s", clientMsg);
-												free(advise);
+								// Lane-Abschnitte durchlaufen
+								partPtr = lanePtr->parts;
+								while (partPtr != NULL) {
+									// Lane-Segmente prüfen
+									segPtr = partPtr->segments;
+									while (segPtr != NULL) {
+										// User befindet sich in einem Lane-Segment
+										if (client->pos.latitude <= segPtr->borders.maxLat &&
+											client->pos.latitude >= segPtr->borders.minLat &&
+											client->pos.longitude <= segPtr->borders.maxLong &&
+											client->pos.longitude >= segPtr->borders.minLong)
+											{
+												advise = getState(*(interStates+i), lanePtr->laneID, client, 
+																  partPtr, interPtr->elevation, moy, mSec);
+																  
+												
+												// Nachricht befüllen
+												if (advise != NULL) {
+													laneMatch = 1;
+													sprintf(msgSpat + strlen(msgSpat), "%s", advise);
+													map = getMapBody(lanePtr);
+													sprintf(msgMap + strlen(msgMap), "%s", map);
+													free(map);
+													free(advise);
+												}
+												break;
 											}
-											break;
-										}
-									segPtr = segPtr->next;
+										segPtr = segPtr->next;
+									}
+									partPtr = partPtr->next;
 								}
-								lanePtr = lanePtr->next;
-							}
+							} // eo (lanePtr->laneID == laneID)
+							lanePtr = lanePtr->next;
 						}
 					}
 				} // eo if (interPtr->refID == refID)
@@ -591,10 +628,12 @@ char * getClientMessage(interStruct ** interTable, char * msg, clientStruct * cl
 		if (laneMatch == 0)
 			return NULL;
 		else {
-			sprintf(clientMsg + strlen(clientMsg), "%s", SPAT_END);
-			char * ret = malloc(strlen(clientMsg)+1);
-			strcat(clientMsg, TERM_NULL);
-			strcpy(ret, clientMsg);
+			sprintf(msgSpat + strlen(msgSpat), "%s", SPAT_END);
+			sprintf(msgMap + strlen(msgMap), "%s", MAP_END);
+			sprintf(msgClient + strlen(msgClient), "%s%s%s", msgMap, msgSpat, SAFARI_END);
+			char * ret = malloc(strlen(msgClient)+1);
+			strcat(msgClient, TERM_NULL);
+			strcpy(ret, msgClient);
 			return ret;
 		}
 	} // eo if (interStates != NULL)
@@ -683,14 +722,21 @@ void setInterUpdate(interStruct ** interTable, char ** regions, char ** ids) {
 
 void freeInterStruct(interStruct * inter) {
 	laneStruct * lanePtr, * laneTmp;
+	partStruct * partPtr, * partTmp;
 	segStruct * segPtr, * segTmp;
 	lanePtr = inter->lanes;
 	while (lanePtr != NULL) {
-		segPtr = lanePtr->segments;
-		while (segPtr != NULL) {
-			segTmp = segPtr;
-			segPtr = segPtr->next;
-			free(segTmp);
+		partPtr = lanePtr->parts;
+		while (partPtr != NULL) {
+			segPtr = partPtr->segments;
+			while (segPtr != NULL) {
+				segTmp = segPtr;
+				segPtr = segPtr->next;
+				free(segTmp);
+			}
+			partTmp = partPtr;
+			partPtr = partPtr->next;
+			free(partTmp);
 		}
 		laneTmp = lanePtr;
 		lanePtr = lanePtr->next;
@@ -739,8 +785,8 @@ int getTimeGap(int moy, int mSec) {
 	return timeGap;
 }
 
-char * getState(char * state, clientStruct * client, int longitude, 
-				int latitude, int elevation, int moy, int mSec) {
+char * getState(char * state, uint8_t laneID, clientStruct * client, 
+				partStruct * part, int elevation, int moy, int mSec) {
 
 	char buf[MSQ_LEN] = XML_TAG;
 	xmlDocPtr xmlMsg, xmlAdvise;
@@ -757,7 +803,7 @@ char * getState(char * state, clientStruct * client, int longitude,
 	else {
 		double offLong, offLat, microDeg, dist, timeLeft;
 		int degDist, msgTime, minEnd, maxEnd, advise, bufSize;
-		char ** strMinEnd, ** strMaxEnd, * strAdvise, * strTime, * tmp, * msg;
+		char ** strMinEnd, ** strMaxEnd, * strAdvise, * strTime, * tmp, * msg, * strID;
 		xmlChar * xmlBuf;
 		// Status-Zeiten nicht enthalten
 		if (!(xmlContains(xmlMsg, "//minEndTime") || xmlContains(xmlMsg, "//minEndTime"))) {
@@ -774,24 +820,31 @@ char * getState(char * state, clientStruct * client, int longitude,
 		freeArray(strMinEnd);
 		freeArray(strMaxEnd);
 		timeLeft	= (minEnd+maxEnd)/2 - msgTime;
-		// Abstand zum Kreuzungspunkt berechnen (in 0.1 m)
-		offLong	 = (double)(longitude - client->pos.longitude);
-		offLat	 = (double)(latitude - client->pos.latitude);
+		// Abstand zum letzten Referenzpunkt berechnen (in 0.1 m)
+		offLong	 = (double)(part->pos.longitude - client->pos.longitude);
+		offLat	 = (double)(part->pos.latitude - client->pos.latitude);
 		degDist	 = (int)sqrt(offLong*offLong + offLat*offLat);
 		microDeg = get100thMicroDegree(elevation);
+		// Gesamtstrecke zur Stopp-Linie
 		dist	 = (degDist/(microDeg/10))*10.0;
+		printf ("Entfernung zum RefPoint %f | Entfernung zum Kreuzungspunkt %i\n",
+				dist, part->distance);
+		dist	+= part->distance;
 		// Geschwindigkeitsempfehlung in 0.1 m/s
-		advise	 = getSpeedAdvise(client, dist, timeLeft);
+		advise	 = getSpeedAdvise(client, dist, timeLeft, part->maxSpeed);
 		// Rückgabe vorbereiten
 		strcpy(buf, XML_TAG);
 		strcat(buf, SPAT_BODY);
 		strTime   = int2string(timeLeft);
 		strAdvise = int2string(advise);
+		strID	  = int2string((int)laneID);
 		xmlAdvise = xmlReadMemory(buf, strlen(buf), NULL,NULL,0);
 		setNodeValue(xmlAdvise, "//likelyTime", strTime);
+		setNodeValue(xmlAdvise, "//LaneID", strID);
 		setNodeValue(xmlAdvise, "//speed", strAdvise);
 		free(strAdvise);
 		free(strTime);
+		free(strID);
 		// XML in String schreiben, DTD entfernen und String zurückgeben
 		xmlDocDumpMemory(xmlAdvise, &xmlBuf, &bufSize);
 		bufSize = bufSize - XML_TAG_LEN + 1;
@@ -806,11 +859,45 @@ char * getState(char * state, clientStruct * client, int longitude,
 	}
 }
 
-int getSpeedAdvise(clientStruct * client, double dist, double timeLeft) {
+int getSpeedAdvise(clientStruct * client, double dist, double timeLeft, int maxSpeed) {
 	int advise;
 	advise	 = (int)dist/timeLeft;
-	// 50 m/s steht laut Spezifikation für eine nicht verfügbaren Empfehlung
-	if (advise > client->maxSpeed)
+	printf("Benötigte Geschindigkeit %i 0.1m/s\n", advise);
+	// 50 m/s für eine nicht verfügbare Empfehlung (SAEJ2735)
+	if (advise > client->maxSpeed || advise > maxSpeed)
 		advise = 500;
 	return advise;
+}
+
+char * getMapBody(laneStruct * lane) {
+	int bufSize;
+	char * msg, * tmp, * maneuvers, * laneID, buf[MSQ_LEN] = XML_TAG;
+	xmlDocPtr xml;
+	xmlChar * xmlBuf;
+	
+	sprintf(buf + strlen(buf), "%s", MAP_BODY);
+	
+	xml = xmlReadMemory(buf, strlen(buf), NULL, NULL, 0);
+	
+	maneuvers = int2string((int)lane->maneuvers);
+	laneID	  = int2string((int)lane->laneID);
+	
+	setNodeValue(xml, "//maneuvers", maneuvers);
+	setNodeValue(xml, "//laneID", laneID);
+	
+	free(maneuvers);
+	free(laneID);
+	
+	xmlDocDumpMemory(xml, &xmlBuf, &bufSize);
+	bufSize = bufSize - XML_TAG_LEN + 1;
+	
+	tmp		= (char *)xmlBuf;
+	msg		= malloc(bufSize+1);
+	strcpy(msg, &tmp[XML_TAG_LEN-1]);
+	strcat(msg, TERM_NULL);
+	
+	xmlFreeDoc(xml);
+	xmlFree(xmlBuf);
+	
+	return msg;
 }
