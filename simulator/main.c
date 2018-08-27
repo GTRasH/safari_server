@@ -39,7 +39,7 @@ int main (int argc, char * argv[]) {
 			printf ("- Nachrichtenfrequenz: %.1f Hz\n\n", tmp);
 		}
 	}
-	// # # # Laden der Nachrichten # # #
+	// # # # Laden der Nachrichten (Microservice S1) # # #
 	fprintf(stdout, "# # # Nachrichten werden eingelesen # # #\n");
 		
 	mapHead = getxmlptrlist(MAP_PATH);
@@ -55,7 +55,7 @@ int main (int argc, char * argv[]) {
 					mapHead->size, spatHead->size);
 	// # # # Nachrichten erfolgreich geladen # # #
 	
-	// # # # Socket aufbauen, binden und auf connect warten # # #
+	// # # # Socket aufbauen, binden und auf connect warten (Microservice S2) # # #
 	fprintf(stdout, "# # # Nachrichten-Server wird gestartet # # #\n");
 	
 	uds = getServerUDS(&address, &addrlen);
@@ -71,7 +71,7 @@ int main (int argc, char * argv[]) {
 	while((msgSocket = accept(uds, (struct sockaddr *) &address, &addrlen)) >= 0) {
 		fprintf(stdout, "- Message Manager verbunden\n");
 		while(1) {
-			// SPaT Nachrichten senden
+			// # # # SPaT Nachrichten senden (Microservice S7) # # #
 			spatElement = spatHead->first;
 			while (spatElement->ptr != NULL) {
 				// Zeitangabe aktualisieren
@@ -101,7 +101,7 @@ int main (int argc, char * argv[]) {
 				spatElement = spatElement->next;
 				usleep(period);
 			}
-			// MAP Nachrichten senden
+			// # # # MAP Nachrichten senden (Microservice S7) # # #
 			mapElement = mapHead->first;
 			while (mapElement->ptr != NULL) {
 				getTimestamp(&moy, &mSec);

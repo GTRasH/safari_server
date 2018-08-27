@@ -26,7 +26,7 @@ int setClientInit(int sock, clientStruct * client) {
 		setLogText(logText, LOG_SERVER);
 	
 	} else {
-		// Sonst: Sende Authentifizierungs-Anforderung
+		// # # # Sende Authentifizierungs-Anforderung (Microservice S14 und S16) # # #
 		func = setClientAuth;
 		if (getClientResponse(sock, MAX_LOGIN, func, reqAuth, client)) {
 			sprintf(logText, "[%u]   Max. failed login requests (%i) reached\n",
@@ -41,6 +41,7 @@ int setClientInit(int sock, clientStruct * client) {
 				setLogText(logText, LOG_SERVER);
 			
 			} else {
+				// # # # Sende Service-Anforderung (Microservice S16 und S20) # # #
 				func = setClientServices;
 				if (getClientResponse(sock, MAX_SERV, func, reqAuth, client)) {
 					sprintf(logText, "[%s]   Max. failed service requests (%i) reached\n",
@@ -54,7 +55,7 @@ int setClientInit(int sock, clientStruct * client) {
 						setLogText(logText, LOG_SERVER);
 					
 					} else {
-						// Sonst: Sende Lokalisierungs-Anforderung
+						// # # # Sende Standort-Anforderung (Microservice S20 und S22) # # #
 						func = setClientLocation;
 						if (getClientResponse(sock, MAX_LOC, func, reqLoc, client)) {
 							sprintf(logText, "[%s]   Max. failed location requests (%i) reached\n",
@@ -519,7 +520,7 @@ char * getClientMessage(interStruct ** interTable, char * msg, clientStruct * cl
 	uint16_t region, id;
 	uint8_t laneID, hash, laneMatch = 0;
 	xmlMsg = xmlReadMemory(msg, strlen(msg), NULL, NULL, 0);
-	// # # #   SPaT-Nachricht   # # #
+	// # # #   SPaT-Nachricht (Microservice S27)   # # #
 	if (xmlContains(xmlMsg, "//IntersectionState")) {
 		interStates = getTree(xmlMsg, "//IntersectionState");
 		// Clientnachricht vorbereiten
@@ -590,8 +591,7 @@ char * getClientMessage(interStruct ** interTable, char * msg, clientStruct * cl
 											{
 												advise = getState(*(interStates+i), lanePtr->laneID, client, 
 																  partPtr, interPtr->elevation, moy, mSec);
-																  
-												
+
 												// Nachricht befüllen
 												if (advise != NULL) {
 													laneMatch = 1;
@@ -637,8 +637,9 @@ char * getClientMessage(interStruct ** interTable, char * msg, clientStruct * cl
 			return ret;
 		}
 	} // eo if (interStates != NULL)
+	
+	// # # # Aktualisierung bestimmter Intersection-Daten eingegangen (Microservice S26) # # #
 	if (xmlContains(xmlMsg, "/mapUpdate")) {
-		// Nachricht zur Aktualisierung bestimter Intersection-Daten eingegangen
 		strRegion = getNodeValue(xmlMsg, "/mapUpdate/region");
 		strID	  = getNodeValue(xmlMsg, "/mapUpdate/id");
 		if (strRegion != NULL && strID != NULL)

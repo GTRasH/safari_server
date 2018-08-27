@@ -43,7 +43,7 @@ int main (int argc, char * argv[]) {
 		}
 		freeArray(startParam);
 	}
-	// Verbindungsaufbau zum Simulator
+	// # # # Verbindungsaufbau zum Simulator (Microservice S3) # # #
 	printf("# # # Verbindungsaufbau zum Simulator # # #\n");
 	if ((socketFD = getClientUDS()) != -1)
 		printf("- Message Manager verarbeitet Nachrichten vom Simulator ...\n");
@@ -55,13 +55,13 @@ int main (int argc, char * argv[]) {
 	if (test > 0)
 		printf("\n# # # Test-Protokoll # # #\n");
 		
-	// Message-Queue für Client_Manager Registrierungen einrichten
+	// # # # Message-Queue für Client_Manager Registrierungen (Microservice S4) # # #
 	serverID = msgget(KEY, PERM  | IPC_CREAT);
-	// Nachrichtenverarbeitung bis Simulator abendiert
+	// # # # Nachrichtenverarbeitung bis Simulator abendiert (Microservice S5) # # #
 	while (1) {
 		// Client-Registrierungen bzw. -Deregistrierungen verarbeiten
 		clients = setMsqClients(serverID, clients);
-		// Nachricht vom Simulator empfangen
+		// # # # Nachricht vom Simulator empfangen (Microservice S6) # # #
 		message = getMessage(socketFD);
 		if (message == NULL) {
 			printf ("\n# # # Message Manager beendet # # #\n"
@@ -73,8 +73,9 @@ int main (int argc, char * argv[]) {
 			continue;
 		}
 		msgId = getNodeValue(message, "//messageId");
-		// messageId auswerten und weitere Verarbeitung triggern
+		// # # # messageId auswerten und weitere Verarbeitung triggern (Microservice S8) # # #
 		switch ((int)strtol(msgId[0], NULL, 10)) {
+			// # # #   Microservice S9   # # #
 			case 18:	switch (processMAP(message, clients, test)) {
 							case 0: if (test & 4)
 										fprintf(stdout, "MAP Nachricht eingegangen\n");
@@ -84,6 +85,7 @@ int main (int argc, char * argv[]) {
 							default: ; break;
 						}
 						break;
+			// # # #   Microservice S10   # # #
 			case 19:	switch (processSPAT(message, clients, test)) {
 							case 0: if (test & 4)
 										fprintf(stdout, "SPaT Nachricht eingegangen\n");

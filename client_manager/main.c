@@ -22,7 +22,7 @@ int main(void) {
 	interStruct ** interTable;
 	msqElement c2s, s2c;
 	
-	// Socket einrichten
+	// # # # Socket einrichten (Microservice S11) # # #
 	sockServer = getSocket(AF_INET, SOCK_STREAM, 0);
 	setSocketBind(&sockServer, INADDR_ANY, PORT);
 	setSocketListen(&sockServer);
@@ -34,25 +34,21 @@ int main(void) {
 		
 		printf("Warte auf Verbindungsaufbau eines Clients ... \n");
 		setSocketAccept(&sockServer, &sockClient);
+		// # # #   Microservice S13   # # #
 		pid = fork();
 		switch (pid) {
 			// Client-(Kind)prozess
 			case 0:
-				// Client-Struktur initialisieren
+				// # # # Client-Struktur initialisieren (Microservice S14) # # #
 				client = setClientStruct((unsigned int)getpid());
 				sprintf(logText, "[%u]   Client process started with pid "
 						"%u\n", client->pid, client->pid);
 				setLogText(logText, LOG_CLIENT);
-				// Anmelderoutine (Authentifizierung, Service- und Standortanforderung)
+				// # # # Anmelderoutine (Microservice S14 bis S22) - siehe client_manager.c
 				if (setClientInit(sockClient, client))
 					printf("Client Initialisierung fehlgeschlagen!");
 				else {
-					printf(	"SAFARI-Dienst für User %s gestartet!\n"
-							"Bestätigte Dienste %i\n"
-							"Client Position latitude = %i | longitude = %i\n",
-							client->name, client->serviceMask,
-							client->pos.latitude, client->pos.longitude);
-					// Intersection-Daten der Client-Region (Verkehrsdienst) laden
+					// # # # Intersection-Daten der Client-Region laden (Microservice S24) # # #
 					if ((interTable = getInterStructTable(client->region)) == NULL) {
 						sprintf(logText, 
 								"[%u]   Client process terminated due to intersection-table error",
@@ -63,6 +59,7 @@ int main(void) {
 						close(sockClient);
 						exit(EXIT_FAILURE);
 					}
+					// # # #   Message Queues einrichten (Microservice S23)   # # #
 					// Einrichtung der Message-Queue für Nachrichten vom Message Manager
 					clientID = msgget(IPC_PRIVATE, PERM | IPC_CREAT);
 					// Einrichten der Message-Queue für Nachrichten an den Message Manager
@@ -78,14 +75,14 @@ int main(void) {
 					setLogText(logText, LOG_CLIENT);
 					// Nachrichten vom Message-Manager verarbeiten
 					while (1) {
-						// msgrcv blockiert bis Nachrichten vom Typ 2 (SPaT oder MAP-Update) eintreffen
+						// # # # msgrcv blockiert bis Nachrichten eintreffen (Microservice S25) # # #
 						msgrcv(clientID, &s2c, MSQ_LEN, 0, 0);
-						// Verarbeitung der Nachricht vom Message Manager
+						// # # # Verarbeitung der Nachricht vom Message Manager (Microservice S26, S27) - siehe client_manager.c
 						clientMsg = getClientMessage(interTable, s2c.message, client);
 						// Client befindet sich auf einer Lane
 						if (clientMsg != NULL) {
 							func = setClientResponse;
-							// Sendet die Nachricht und erwartet ein Standort- oder Service-Update
+							// # # # Sendet die Nachricht und erwartet Standort- oder Service-Update (Microservice S28 und S32) # # #
 							if (getClientResponse(sockClient, MAX_RUN, func, clientMsg, client)) {
 								sprintf(logText, "[%s]   Client responses %i times with invalid data\n",
 										client->name, MAX_RUN);
@@ -99,7 +96,7 @@ int main(void) {
 						else if (updateRequired(client)) {
 							clientMsg = getFileContent(REQ_LOC);
 							func	  = setClientLocation;
-							// Sendet eine Standortanforderung
+							// # # # Sendet eine Standortanforderung (Microservice S28 und S32) # # #
 							if (getClientResponse(sockClient, MAX_RUN, func, clientMsg, client)) {
 								sprintf(logText, "[%s]   Client responses %i times with invalid location\n",
 										client->name, MAX_RUN);
@@ -110,13 +107,13 @@ int main(void) {
 							free(clientMsg);
 						}
 					}
-					// Deregistrierung senden
+					// # # # Deregistrierung senden (Microservice S35) # # #
 					c2s.prio = 1;
 					sprintf (c2s.message, "%d", clientID);
 					msgsnd (serverID, &c2s, MSQ_LEN, 0);
 					freeInterTable(interTable);
 				}
-				// Client-Prozess beenden
+				// # # # Client-Prozess beenden (Microservice S35) # # #
 				sprintf(logText, "[%u]   Client process terminated\n", client->pid);
 				setLogText(logText, LOG_CLIENT);
 				fflush(stdout);
