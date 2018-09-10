@@ -397,14 +397,15 @@ void setSegments(MYSQL_STMT * stmt, uint16_t * segID, int * maxLong,
 				 uint16_t laneWidth, uint8_t skip, int nodeLong, int nodeLat, 
 				 int16_t offsetX, int16_t offsetY) {
 	
-	uint16_t degLaneWidth, degNodeGap, segments;
+	uint32_t degNodeGap;
+	uint16_t degLaneWidth, segments;
 	uint8_t offsetA, offsetB, offsetC;
 	double nodeGap, cos;
 	// Strecke zwischen Bezugs- und Offset-Node in cm
 	nodeGap	 	 = sqrt((offsetX*offsetX)+(offsetY*offsetY));
 	// Umrechnung cm in 1/10 µGrad
 	degLaneWidth = (uint16_t)(microDeg*laneWidth)/100;
-	degNodeGap	 = (uint16_t)(microDeg*nodeGap)/100;
+	degNodeGap	 = (uint32_t)(microDeg*nodeGap)/100;
 	// Anzahl der Teilstücke der Strecke zwischen Bezugs- und Offset-Node
 	// Sollte das Segment < SEG_PART sein, wird ein Teilstück gebildet.
 	if ((segments = (uint16_t)ceil(nodeGap/SEG_PART)) == 0)
@@ -677,9 +678,9 @@ void setInsertParam(MYSQL_BIND * bind, uint16_t * region, uint16_t * id,
 }
 
 void setOffsets(uint8_t * offsetA, uint8_t * offsetB, uint8_t *offsetC,
-				double cos, uint16_t degLaneWidth, uint16_t degNodeGap) {
+				double cos, uint16_t degLaneWidth, uint32_t degNodeGap) {
 	
-	*offsetA = (uint8_t)ceil(cos * degNodeGap);
+	*offsetA = (uint8_t)floor(cos * degNodeGap);
 	*offsetB = (uint8_t)ceil(sqrt((degNodeGap*degNodeGap)-(*offsetA * *offsetA)));
 	*offsetC = (uint8_t)ceil(degLaneWidth/cos);
 }

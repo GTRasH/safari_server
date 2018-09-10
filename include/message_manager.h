@@ -127,7 +127,7 @@ void setSegments(MYSQL_STMT * stmt, uint16_t * segID, int * maxLong,
  * 
 */
 void setOffsets(uint8_t * offsetA, uint8_t * offsetB, uint8_t *offsetC,
-				double cos, uint16_t degLaneWidth, uint16_t degNodeGap);
+				double cos, uint16_t degLaneWidth, uint32_t degNodeGap);
 
 /** \brief	Fügt einen Client zur Liste registrierte MSQ-Clients hinzu
  * 
