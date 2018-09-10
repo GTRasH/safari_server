@@ -16,7 +16,7 @@ int main (int argc, char * argv[]) {
 	xmlListHead * mapHead, * spatHead;
 	xmlListElement * mapElement, * spatElement;
 	int uds, msgSocket, minEndTime, maxEndTime;
-	char * strMoy, * strMSec, * strMinEndTime, * strMaxEndTime;
+	char ** strOff, * strMoy, * strMSec, * strMinEndTime, * strMaxEndTime;
 	socklen_t addrlen;
 	struct sockaddr_un address;
 	int period = 1000000;	// µs für 1 Hz
@@ -53,6 +53,16 @@ int main (int argc, char * argv[]) {
 	fprintf(stdout, "- Einlesevorgang erfolgreich\n"
 					"  Es werden %lu MAP- und %lu SPaT-Nachrichten verarbeitet\n\n",
 					mapHead->size, spatHead->size);
+					
+	spatElement = spatHead->first;
+	while (spatElement->ptr != NULL) {
+		strOff = getNodeValue(spatElement->ptr, "//minEndTime");
+		spatElement->offset = (int)strtol(*(strOff), NULL, 10);
+		spatElement = spatElement->next;
+		freeArray(strOff);
+	}
+					
+					
 	// # # # Nachrichten erfolgreich geladen # # #
 	
 	// # # # Socket aufbauen, binden und auf connect warten (Microservice S2) # # #
@@ -77,7 +87,7 @@ int main (int argc, char * argv[]) {
 				// Zeitangabe aktualisieren
 				getTimestamp(&moy, &mSec);
 				// Jeder Ampel-Status dauert noch 10s an
-				minEndTime 		= ((moy % 60) * 600 + (mSec/100)) + STATUS_OFFSET;
+				minEndTime 		= ((moy % 60) * 600 + (mSec/100)) + spatElement->offset;
 				maxEndTime 		= minEndTime + 10;
 				strMinEndTime	= int2string(minEndTime);
 				strMaxEndTime	= int2string(maxEndTime);
@@ -88,6 +98,8 @@ int main (int argc, char * argv[]) {
 				setNodeValue(spatElement->ptr, "//IntersectionState/timeStamp", strMSec);
 				setNodeValue(spatElement->ptr, "//minEndTime", strMinEndTime);
 				setNodeValue(spatElement->ptr, "//maxEndTime", strMaxEndTime);
+				
+				printf("Aktuelles SPaT-Nachrichten-Paket mit Signal-Offset %i\n", spatElement->offset);
 				
 				free(strMoy);
 				free(strMSec);

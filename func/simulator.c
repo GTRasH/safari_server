@@ -1,9 +1,14 @@
 #include <simulator.h>
 
+static int compare(const void * a, const void * b) {
+	return strcmp(*(const char **) a, *(const char **) b);
+}
+
 xmlListHead * getxmlptrlist(char *pathname) {
 	DIR *dir;
-	struct dirent *entry;
+	struct dirent * entry;
 	char docname[256];
+	int fileCount = 0, i = 0;
 	xmlListElement * cur;
 	xmlListHead * head;
 	// Initialisierung Liste
@@ -15,21 +20,47 @@ xmlListHead * getxmlptrlist(char *pathname) {
 	cur->ptr 	= NULL;
 	// Aufbau der Liste mit XML-Pointern der jeweiligen Nachrichten-Datei
 	if ((dir = opendir(pathname)) != NULL) {
+		while ((entry = readdir(dir)) != NULL)
+			if (entry->d_type == DT_REG)
+				fileCount++;
+		closedir(dir);
+	}
+	
+	char ** files;
+
+	files = malloc(fileCount * sizeof(char *));
+	
+	
+	if ((dir = opendir(pathname)) != NULL) {
 		while ((entry = readdir(dir)) != NULL) {
-			if (entry->d_type == DT_REG) {
-				xmlListElement * new = malloc(sizeof(xmlListElement));
-				new->next = NULL;
-				new->ptr  = NULL;
+			if (entry->d_type == DT_REG) {		
+				
 				snprintf(docname, sizeof(docname), 
 						"%s%s", pathname, entry->d_name);
-				cur->next = new;
-				cur->ptr  = getdoc(docname);
-				cur = new;
-				head->size++;
+				
+				files[i] = malloc(strlen(docname)+1);
+				
+				strcpy(files[i], docname);
+				strcat(files[i], TERM_NULL);
+				i++;
+				
 			}
 		}
 		closedir(dir);
 	}
+	qsort(files, fileCount, sizeof(files[0]), compare);
+
+	for (i = 0; i < fileCount; i++) {
+		xmlListElement * new = malloc(sizeof(xmlListElement));
+		new->next = NULL;
+		new->ptr  = NULL;
+		cur->next = new;
+		cur->ptr  = getdoc(files[i]);
+		cur = new;
+		head->size++;
+		free(files[i]);
+	}
+	free(files);
 	return head;
 }
 

@@ -9,12 +9,10 @@
 /** \brief	Pfad für SPaT-Nachrichten */
 #define SPAT_PATH 	LIB_SAFARI"xml/spat/"
 
-/** \brief	Dauer einer Ampelphase in SPaT-Nachrichten in 0.1s  */
-#define STATUS_OFFSET 100
-
 /** \brief Listen-Element für SPat- und MAP-Nachrichten (Lesevorgang) */
 typedef struct xmlListElement {
 	struct xmlListElement *next;
+	int offset;
 	xmlDocPtr ptr;
 } xmlListElement;
 
