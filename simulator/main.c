@@ -99,8 +99,6 @@ int main (int argc, char * argv[]) {
 				setNodeValue(spatElement->ptr, "//minEndTime", strMinEndTime);
 				setNodeValue(spatElement->ptr, "//maxEndTime", strMaxEndTime);
 				
-				printf("Aktuelles SPaT-Nachrichten-Paket mit Signal-Offset %i\n", spatElement->offset);
-				
 				free(strMoy);
 				free(strMSec);
 				free(strMinEndTime);
