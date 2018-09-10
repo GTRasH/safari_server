@@ -23,7 +23,7 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 		interMinLat, nodeLong, nodeLat, maxLong, maxLat, minLong, minLat;
 	double microDegree;
 	uint16_t region, id, partID, segID, laneWidth, nodeWidth, dist, 
-			 maneuvers = 0, maxSpeed = 500;
+			 maneuvers, maxSpeed = 500;
 	int16_t offsetX, offsetY;
 	uint8_t laneID, segSkip, update = 0;
 	msqList * clientPtr;
@@ -125,7 +125,8 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 				xmlFreeDoc(xmlLaneDoc);
 				continue;
 			}
-			// Abfrage der erlaubten Manöver
+			// Zurücksetzen und Setzen des Maneuver-Bit-Value
+			maneuvers = 0;
 			if (xmlContains(xmlLaneDoc, "//maneuverStraightAllowed"))
 				maneuvers += 1;
 			if (xmlContains(xmlLaneDoc, "//maneuverLeftAllowed"))

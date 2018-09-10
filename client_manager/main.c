@@ -73,16 +73,17 @@ int main(void) {
 					sprintf(logText,"[%s]   Message queue registration done - SAFARI started\n",
 									client->name);
 					setLogText(logText, LOG_CLIENT);
+					// Funktions-Pointer zum Verarbeiten des Client-Response
+					func = setClientResponse;
 					// Nachrichten vom Message-Manager verarbeiten
 					while (1) {
 						// # # # msgrcv blockiert bis Nachrichten eintreffen (Microservice S25) # # #
 						msgrcv(clientID, &s2c, MSQ_LEN, 0, 0);
 						// # # # Verarbeitung der Nachricht vom Message Manager (Microservice S26, S27) - siehe client_manager.c
 						clientMsg = getClientMessage(interTable, s2c.message, client);
-						// Client befindet sich auf einer Lane
+						// # # # CLIENT BEFINDET SICH AUF EINER LANE
+						// -> Sendet Nachricht und erwartet Standort- oder Service-Update (Microservice S27 und S32) # # #
 						if (clientMsg != NULL) {
-							func = setClientResponse;
-							// # # # Sendet die Nachricht und erwartet Standort- oder Service-Update (Microservice S28 und S32) # # #
 							if (getClientResponse(sockClient, MAX_RUN, func, clientMsg, client)) {
 								sprintf(logText, "[%s]   Client responses %i times with invalid data\n",
 										client->name, MAX_RUN);
@@ -92,13 +93,13 @@ int main(void) {
 							}
 							free(clientMsg);
 						}
-						// Neue Standortdaten benötigt
+						// # # # LETZTE STANDORT-AKTUALISIERUNG ZU ALT
+						// -> Sendet Nachricht und erwartet Standort- oder Service-Update (Microservice S28 und S32) # # #
 						else if (updateRequired(client)) {
 							clientMsg = getFileContent(REQ_LOC);
-							func	  = setClientLocation;
-							// # # # Sendet eine Standortanforderung (Microservice S28 und S32) # # #
+							// # # # Sendet eine Standortanforderung und erwartet Standort- oder Service-Update (Microservice S28 und S32) # # #
 							if (getClientResponse(sockClient, MAX_RUN, func, clientMsg, client)) {
-								sprintf(logText, "[%s]   Client responses %i times with invalid location\n",
+								sprintf(logText, "[%s]   Client responses %i times with invalid data\n",
 										client->name, MAX_RUN);
 								setLogText(logText, LOG_CLIENT);
 								free(clientMsg);
