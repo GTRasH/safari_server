@@ -802,8 +802,8 @@ char * getState(char * state, uint8_t laneID, clientStruct * client,
 	}
 	// Geschwindigkeitsempfehlung berechnen
 	else {
-		double offLong, offLat, microDeg, dist, timeLeft;
-		int degDist, msgTime, minEnd, maxEnd, advise, bufSize;
+		double offLong, offLat, microDegLong, microDegLat, timeLeft;
+		int msgTime, minEnd, maxEnd, advise, bufSize, dist;
 		char ** strMinEnd, ** strMaxEnd, * strAdvise, * strTime, * tmp, * msg, * strID;
 		xmlChar * xmlBuf;
 		// Status-Zeiten nicht enthalten
@@ -821,16 +821,15 @@ char * getState(char * state, uint8_t laneID, clientStruct * client,
 		freeArray(strMinEnd);
 		freeArray(strMaxEnd);
 		timeLeft	= (minEnd+maxEnd)/2 - msgTime;
-		// Abstand zum letzten Referenzpunkt berechnen (in 0.1 m)
-		offLong	 = (double)(part->pos.longitude - client->pos.longitude);
-		offLat	 = (double)(part->pos.latitude - client->pos.latitude);
-		degDist	 = (int)sqrt(offLong*offLong + offLat*offLat);
-		microDeg = get100thMicroDegree(elevation);
+		// Abstand zum letzten Referenzpunkt in 1/10 µGrad
+		offLong	= (double)(part->pos.longitude - client->pos.longitude);
+		offLat	= (double)(part->pos.latitude - client->pos.latitude);
+		// Umrechnung in 0.1m
+		get100thMicroDegree(elevation, client->pos.latitude, &microDegLat, &microDegLong);
+		offLong	/= (microDegLong/10);
+		offLat	/= (microDegLat/10);
 		// Gesamtstrecke zur Stopp-Linie
-		dist	 = (degDist/(microDeg/10))*10.0;
-		printf ("Entfernung zum RefPoint %f | Entfernung zum Kreuzungspunkt %i\n",
-				dist, part->distance);
-		dist	+= part->distance;
+		dist	 = (int)sqrt(offLong*offLong + offLat*offLat) + part->distance;
 		// Geschwindigkeitsempfehlung in 0.1 m/s
 		advise	 = getSpeedAdvise(client, dist, timeLeft, part->maxSpeed);
 		// Rückgabe vorbereiten
@@ -863,7 +862,6 @@ char * getState(char * state, uint8_t laneID, clientStruct * client,
 int getSpeedAdvise(clientStruct * client, double dist, double timeLeft, int maxSpeed) {
 	int advise;
 	advise	 = (int)dist/timeLeft;
-	printf("Benötigte Geschindigkeit %i 0.1m/s\n", advise);
 	// 50 m/s für eine nicht verfügbare Empfehlung (SAEJ2735)
 	if (advise > client->maxSpeed || advise > maxSpeed)
 		advise = 500;

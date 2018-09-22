@@ -133,9 +133,11 @@ void getTimestamp(int * moy, int * mSec) {
 			(60 * timeLocal->tm_hour) + timeLocal->tm_min;
 }
 
-double get100thMicroDegree(int elevation) {
+void get100thMicroDegree(int elevation, int latitude, double * microDegLat, double * microDegLong) {
 	// Radiant für 1 cm
-	double rad = asin(100000000.0/(WGS84_RAD + elevation * 10));
+	double rad	  = asin(100000000.0/(WGS84_RAD + elevation * 10));
 	// Umrechnung in 1/100 µGrad
-	return ((360/(2*M_PI)) * rad);
+	*microDegLat  = ((360/(2*M_PI)) * rad);
+	// Längengrad-Wertigkeit wird zum Äquator größer -> Anpassung der Wertigkeit
+	*microDegLong = *microDegLat / cos((2*M_PI/360.0)*(latitude/10000000.0));
 }

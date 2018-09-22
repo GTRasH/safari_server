@@ -76,10 +76,13 @@ char ** getSplitString(char * a_str, const char a_delim);
  */
 void getTimestamp(int * moy, int * mSec);
 
-/** \brief	Berechnet 1/100 µGrad in Abhängigkeit der Höhe
+/** \brief	Berechnet 1/100 µGrad in Abhängigkeit der Höhe (Breitengrad)
+ * 			und in Abhängigkeit des Breitengrades den Längengrad.
  * 
- * \param[in] elevation	Geographische Höhe der Kreuzung
+ * \param[in] 	elevation	 Geographische Höhe der Kreuzung
+ * \param[in] 	latitude	 Breitengrad
+ * \param[out]	microDegLat	 Referenz des Breitengrades in 1/100 µGrad
+ * \param[out]	microDegLong Referenz des Längengrades in 1/100 µGrad
  * 
- * \return 1/100 µGrad
 */
-double get100thMicroDegree(int elevation);
+void get100thMicroDegree(int elevation, int latitude, double * microDegLat, double * microDegLong);
