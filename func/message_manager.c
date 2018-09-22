@@ -20,11 +20,11 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 		 ** xmlNodes, ** strOffsetX, ** strOffsetY, query[Q_BUF], 
 		 interUpdate[MSG_BUF], clientNotify[MSG_BUF], queryStmt[Q_BUF];
 	int elevation, interOffset, interMaxLong, interMaxLat, interMinLong,
-		interMinLat, nodeLong, nodeLat, maxLong, maxLat, minLong, minLat;
-	double microDegree;
+		interMinLat, nodeLong, nodeLat, maxLong, maxLat, minLong, minLat,
+		latitude, longitude, offsetX, offsetY;
+	double microDegLat, microDegLong;
 	uint16_t region, id, partID, segID, laneWidth, nodeWidth, dist, 
 			 maneuvers, maxSpeed = 500;
-	int16_t offsetX, offsetY;
 	uint8_t laneID, segSkip, update = 0;
 	msqList * clientPtr;
 	msqElement s2c;
@@ -83,12 +83,21 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 			freeArray(strElevation);
 		}
 		// Kreuzungsumgebung (Global Service Area) bestimmen
-		microDegree	 = get100thMicroDegree(elevation);
-		interOffset	 = microDegree*INTER_AREA;
-		interMaxLong = (int)strtol(*(interLong),NULL,10) + interOffset;
-		interMaxLat	 = (int)strtol(*(interLat),NULL,10) + interOffset;
-		interMinLong = (int)strtol(*(interLong),NULL,10) - interOffset;
-		interMinLat  = (int)strtol(*(interLat),NULL,10) - interOffset;
+		latitude	 = (int)strtol(*(interLat),NULL,10);
+		longitude	 = (int)strtol(*(interLong),NULL,10);
+
+		get100thMicroDegree(elevation, latitude, &microDegLat, &microDegLong);
+		
+		interOffset  = microDegLat * INTER_AREA * 10;
+		
+		interMaxLat	 = latitude + interOffset;
+		interMinLat  = latitude - interOffset;
+
+		interOffset  = microDegLong * INTER_AREA * 10;
+		
+		interMaxLong = longitude + interOffset;
+		interMinLong = longitude - interOffset;
+		
 		// Intersection auf der DB aktualisieren
 		sprintf	(query, 
 				"INSERT INTO intersections "
@@ -185,8 +194,8 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 					}
 					strOffsetX	= getNodeValue(xmlNodeDoc, "//x");
 					strOffsetY	= getNodeValue(xmlNodeDoc, "//y");
-					offsetX		= (int16_t)strtol(*(strOffsetX), NULL, 10);
-					offsetY		= (int16_t)strtol(*(strOffsetY), NULL, 10);
+					offsetX		= (int)strtol(*(strOffsetX), NULL, 10);
+					offsetY		= (int)strtol(*(strOffsetY), NULL, 10);
 					partID		= k-1;
 					segID		= 0;
 					sprintf (query, 
@@ -201,7 +210,7 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 						sqlError(dbCon);
 					
 					setSegments(stmt, &segID, &maxLong, &maxLat, &minLong, 
-								&minLat, microDegree, nodeWidth, segSkip, 
+								&minLat, microDegLat, microDegLong, nodeWidth, segSkip, 
 								nodeLong, nodeLat, offsetX, offsetY);
 
 					// Abstand zum Referenzpunkt (Node-LLmD-64b) in cm
@@ -209,8 +218,8 @@ int processMAP(xmlDocPtr message, msqList * clients, uint8_t test) {
 					
 					segSkip	  = 0;
 					// neuer Referenzpunkt für den nächsten Node
-					nodeLong += (int)(microDegree*offsetX/100);
-					nodeLat	 += (int)(microDegree*offsetY/100);
+					nodeLong += (microDegLong*offsetX)/10;
+					nodeLat	 += (microDegLat*offsetY)/10;
 					freeArray(strOffsetX);
 					freeArray(strOffsetY);
 					// Zulässige Höchstgeschwindigkeit auf der Lane (weitere Lane-Abschnitte)
@@ -393,33 +402,52 @@ msqList * setMsqClients(int serverID, msqList * clients) {
 }
 
 void setSegments(MYSQL_STMT * stmt, uint16_t * segID, int * maxLong, 
-				 int * maxLat, int * minLong, int * minLat, double microDeg, 
-				 uint16_t laneWidth, uint8_t skip, int nodeLong, int nodeLat, 
-				 int16_t offsetX, int16_t offsetY) {
+				 int * maxLat, int * minLong, int * minLat, double microDegLat,
+				 double microDegLong, uint16_t laneWidth, uint8_t skip, 
+				 int nodeLong, int nodeLat, int offsetX, int offsetY) {
 	
-	uint32_t degNodeGap;
+	long int degOffsetX, degOffsetY;
+	uint32_t nodeGap, degNodeGap, degGap;
 	uint16_t degLaneWidth, segments;
-	uint8_t offsetA, offsetB, offsetC;
-	double nodeGap, cos;
-	// Strecke zwischen Bezugs- und Offset-Node in cm
-	nodeGap	 	 = sqrt((offsetX*offsetX)+(offsetY*offsetY));
-	// Umrechnung cm in 1/10 µGrad
-	degLaneWidth = (uint16_t)(microDeg*laneWidth)/100;
-	degNodeGap	 = (uint32_t)(microDeg*nodeGap)/100;
+	uint16_t offsetA, offsetB, offsetC;
+	double adjacent, opposite, cos, degAdjacent, degOpposite, ratio;
+	
+	// Umrechnung der Offset-Werte von cm in 1/100 µGrad
+	degOffsetX = (long int)(offsetX * microDegLong);
+	degOffsetY = (long int)(offsetY * microDegLat);
+	
+	// Verhältnis der Wertigkeit von Längen- und Breitengrad
+	ratio = microDegLong / microDegLat;
+	
+	nodeGap	= (uint32_t)sqrt((offsetX*offsetX)+(offsetY*offsetY));
+	// Strecke zwischen Bezugs- und Offset-Node in 1/100 µGrad
+	degGap	= (uint32_t)sqrt((degOffsetX*degOffsetX)+(degOffsetY*degOffsetY));
+	
 	// Anzahl der Teilstücke der Strecke zwischen Bezugs- und Offset-Node
 	// Sollte das Segment < SEG_PART sein, wird ein Teilstück gebildet.
-	if ((segments = (uint16_t)ceil(nodeGap/SEG_PART)) == 0)
+	if ((segments = (uint16_t)ceil(degGap/(SEG_PART*microDegLat))) == 0)
 		segments = 1;
 	// Der erste Lane-Abschnitt ist zu kurz und wird übersprungen
 	if (segments <= skip)
 		return;
 	// Teilstücke in 1/10 µGrad
-	degNodeGap 	/= segments;
+	degNodeGap 	= degGap/segments;
 	// 0° <= Segment-Winkel < 90°
 	if (offsetX > 0 && offsetY >= 0) {
 		// 0° <= Segment-Winkel < 45° (Winkel zwischen Lane-Segment-Ausrichtung und Abzisse)
-		if ((cos = offsetX/nodeGap) > M_SQRT1_2) {
+		if ((cos = offsetX/(double)nodeGap) > M_SQRT1_2) {
+			// Berechnung der Spur-Breite
+			adjacent	 = cos * laneWidth;
+			opposite	 = sqrt(laneWidth*laneWidth - adjacent*adjacent);
+			degAdjacent  = adjacent * microDegLat;
+			degOpposite	 = opposite * microDegLong;
+			degLaneWidth = (uint16_t)sqrt(degAdjacent*degAdjacent + degOpposite*degOpposite);
+			// Berechnung der Offset-Werte
 			setOffsets(&offsetA, &offsetB, &offsetC, cos, degLaneWidth, degNodeGap);
+			// Verhältnis von Längen- und Breitengrad einbeziehen und Umrechnung in 1/10 µGrad
+			offsetA	= (offsetA * ratio)/10;
+			offsetB /= 10;
+			offsetC /= 10;
 			// # # # Initiale Referenzwerte # # #
 			// Im 1. Lane-Segment werden Teilstücke vom Start abgezogen
 			if (skip > 0) {
@@ -445,8 +473,19 @@ void setSegments(MYSQL_STMT * stmt, uint16_t * segID, int * maxLong,
 		// 45° <= Segment-Winkel < 90°
 		else {
 			// Winkel zwischen Lane-Segment-Ausrichtung und Ordinate
-			cos = offsetY/nodeGap;
+			cos = offsetY/(double)nodeGap;
+			// Berechnung der Spur-Breite
+			adjacent	 = cos * laneWidth;
+			opposite	 = sqrt(laneWidth*laneWidth - adjacent*adjacent);
+			degAdjacent  = adjacent * microDegLong;
+			degOpposite	 = opposite * microDegLat;
+			degLaneWidth = sqrt(degAdjacent*degAdjacent + degOpposite*degOpposite);
+			// Berechnung der Offset-Werte
 			setOffsets(&offsetA, &offsetB, &offsetC, cos, degLaneWidth, degNodeGap);
+			// Verhältnis von Längen- und Breitengrad einbeziehen und Umrechnung in 1/10 µGrad
+			offsetA	/= 10;
+			offsetB = (offsetB * ratio)/10;
+			offsetC = (offsetC * ratio)/10;
 			if (skip > 0) {
 				segments -= skip;
 				*maxLong = nodeLong + (int)ceil(offsetC/2.0) + skip * offsetB;
@@ -469,9 +508,20 @@ void setSegments(MYSQL_STMT * stmt, uint16_t * segID, int * maxLong,
 	// 90° <= Segment-Winkel < 180°
 	else if (offsetX <= 0 && offsetY > 0) {
 		// 90° <= Segment-Winkel < 135°
-		if ((cos = abs(offsetX)/nodeGap) < M_SQRT1_2) {
-			cos = offsetY/nodeGap;
+		if ((cos = abs(offsetX)/(double)nodeGap) < M_SQRT1_2) {
+			cos = offsetY/(double)nodeGap;
+			// Berechnung der Spur-Breite
+			adjacent	 = cos * laneWidth;
+			opposite	 = sqrt(laneWidth*laneWidth - adjacent*adjacent);
+			degAdjacent  = adjacent * microDegLong;
+			degOpposite	 = opposite * microDegLat;
+			degLaneWidth = sqrt(degAdjacent*degAdjacent + degOpposite*degOpposite);
+			// Berechnung der Offset-Werte
 			setOffsets(&offsetA, &offsetB, &offsetC, cos, degLaneWidth, degNodeGap);
+			// Verhältnis von Längen- und Breitengrad einbeziehen und Umrechnung in 1/10 µGrad
+			offsetA	/= 10;
+			offsetB = (offsetB * ratio)/10;
+			offsetC = (offsetC * ratio)/10;
 			if (skip > 0) {
 				segments -= skip;
 				*maxLat	 = nodeLat + skip * offsetA;
@@ -492,7 +542,18 @@ void setSegments(MYSQL_STMT * stmt, uint16_t * segID, int * maxLong,
 		}
 		// 135° <= Segment-Winkel < 180°
 		else {
+			// Berechnung der Spur-Breite
+			adjacent	 = cos * laneWidth;
+			opposite	 = sqrt(laneWidth*laneWidth - adjacent*adjacent);
+			degAdjacent  = adjacent * microDegLat;
+			degOpposite	 = opposite * microDegLong;
+			degLaneWidth = sqrt(degAdjacent*degAdjacent + degOpposite*degOpposite);
+			// Berechnung der Offset-Werte
 			setOffsets(&offsetA, &offsetB, &offsetC, cos, degLaneWidth, degNodeGap);
+			// Verhältnis von Längen- und Breitengrad einbeziehen und Umrechnung in 1/10 µGrad
+			offsetA	= (offsetA * ratio)/10;
+			offsetB /= 10;
+			offsetC /= 10;
 			if (skip > 0) {
 				segments -= skip;
 				*minLong = nodeLong - skip * offsetA;
@@ -515,8 +576,19 @@ void setSegments(MYSQL_STMT * stmt, uint16_t * segID, int * maxLong,
 	// 180° <= Segment-Winkel < 270°
 	else if (offsetX < 0 && offsetY <= 0) {
 		// 180° <= Segment-Winkel < 225°
-		if ((cos = abs(offsetX)/nodeGap) > M_SQRT1_2) {
+		if ((cos = abs(offsetX)/(double)nodeGap) > M_SQRT1_2) {
+			// Berechnung der Spur-Breite in 1/100 µGrad (abhänig von der Ausrichtung)
+			adjacent	 = cos * laneWidth;
+			opposite	 = sqrt(laneWidth*laneWidth - adjacent*adjacent);
+			degAdjacent  = adjacent * microDegLat;
+			degOpposite	 = opposite * microDegLong;
+			degLaneWidth = sqrt(degAdjacent*degAdjacent + degOpposite*degOpposite);
+			// Berechnung der Offset-Werte
 			setOffsets(&offsetA, &offsetB, &offsetC, cos, degLaneWidth, degNodeGap);
+			// Verhältnis von Längen- und Breitengrad einbeziehen und Umrechnung in 1/10 µGrad
+			offsetA	= (offsetA * ratio)/10;
+			offsetB /= 10;
+			offsetC /= 10;
 			if (skip > 0) {
 				segments -= skip;
 				*minLat	 = nodeLat - ((int)ceil(offsetC/2.0) + skip * offsetB);
@@ -538,8 +610,19 @@ void setSegments(MYSQL_STMT * stmt, uint16_t * segID, int * maxLong,
 		}
 		// 225° <= Segment-Winkel < 270°
 		else {
-			cos = abs(offsetY)/nodeGap;
+			cos = abs(offsetY)/(double)nodeGap;
+			// Berechnung der Spur-Breite in 1/100 µGrad (abhänig von der Ausrichtung)
+			adjacent	 = cos * laneWidth;
+			opposite	 = sqrt(laneWidth*laneWidth - adjacent*adjacent);
+			degAdjacent  = adjacent * microDegLong;
+			degOpposite	 = opposite * microDegLat;
+			degLaneWidth = sqrt(degAdjacent*degAdjacent + degOpposite*degOpposite);
+			// Berechnung der Offset-Werte
 			setOffsets(&offsetA, &offsetB, &offsetC, cos, degLaneWidth, degNodeGap);
+			// Verhältnis von Längen- und Breitengrad einbeziehen und Umrechnung in 1/10 µGrad
+			offsetA	/= 10;
+			offsetB = (offsetB * ratio)/10;
+			offsetC = (offsetC * ratio)/10;
 			if (skip > 0) {
 				segments -= skip;
 				*minLong = nodeLong - ((int)ceil(offsetC/2.0) + skip * offsetB);
@@ -562,9 +645,20 @@ void setSegments(MYSQL_STMT * stmt, uint16_t * segID, int * maxLong,
 	// 270° <= Segment-Winkel < 360°
 	else if (offsetX >= 0 && offsetY < 0) {
 		// 270° <= Segment-Winkel < 315°
-		if ((cos = offsetX/nodeGap) < M_SQRT1_2) {
-			cos = abs(offsetY)/nodeGap;
+		if ((cos = offsetX/(double)nodeGap) < M_SQRT1_2) {
+			cos = abs(offsetY)/(double)nodeGap;
+			// Berechnung der Spur-Breite in 1/100 µGrad (abhänig von der Ausrichtung)
+			adjacent	 = cos * laneWidth;
+			opposite	 = sqrt(laneWidth*laneWidth - adjacent*adjacent);
+			degAdjacent  = adjacent * microDegLong;
+			degOpposite	 = opposite * microDegLat;
+			degLaneWidth = sqrt(degAdjacent*degAdjacent + degOpposite*degOpposite);
+			// Berechnung der Offset-Werte
 			setOffsets(&offsetA, &offsetB, &offsetC, cos, degLaneWidth, degNodeGap);
+			// Verhältnis von Längen- und Breitengrad einbeziehen und Umrechnung in 1/10 µGrad
+			offsetA	/= 10;
+			offsetB = (offsetB * ratio)/10;
+			offsetC = (offsetC * ratio)/10;
 			if (skip > 0) {
 				segments -= skip;
 				*maxLong = nodeLong + (int)ceil(offsetC/2.0) + skip * offsetB;
@@ -585,7 +679,18 @@ void setSegments(MYSQL_STMT * stmt, uint16_t * segID, int * maxLong,
 		}
 		// 315° <= Segment-Winkel < 360°
 		else {
+			// Berechnung der Spur-Breite in 1/100 µGrad (abhänig von der Ausrichtung)
+			adjacent	 = cos * laneWidth;
+			opposite	 = sqrt(laneWidth*laneWidth - adjacent*adjacent);
+			degAdjacent  = adjacent * microDegLat;
+			degOpposite	 = opposite * microDegLong;
+			degLaneWidth = sqrt(degAdjacent*degAdjacent + degOpposite*degOpposite);
+			// Berechnung der Offset-Werte
 			setOffsets(&offsetA, &offsetB, &offsetC, cos, degLaneWidth, degNodeGap);
+			// Verhältnis von Längen- und Breitengrad einbeziehen und Umrechnung in 1/10 µGrad
+			offsetA	= (offsetA * ratio)/10;
+			offsetB /= 10;
+			offsetC /= 10;
 			if (skip > 0) {
 				segments -= skip;
 				*minLat	 = nodeLat - ((int)ceil(offsetC/2.0) + skip * offsetB);
@@ -677,10 +782,10 @@ void setInsertParam(MYSQL_BIND * bind, uint16_t * region, uint16_t * id,
 	bind[12].length		 = 0;
 }
 
-void setOffsets(uint8_t * offsetA, uint8_t * offsetB, uint8_t *offsetC,
+void setOffsets(uint16_t * offsetA, uint16_t * offsetB, uint16_t *offsetC,
 				double cos, uint16_t degLaneWidth, uint32_t degNodeGap) {
 	
-	*offsetA = (uint8_t)floor(cos * degNodeGap);
-	*offsetB = (uint8_t)ceil(sqrt((degNodeGap*degNodeGap)-(*offsetA * *offsetA)));
-	*offsetC = (uint8_t)ceil(degLaneWidth/cos);
+	*offsetA = (uint16_t)floor(cos * degNodeGap);
+	*offsetB = (uint16_t)ceil(sqrt((degNodeGap*degNodeGap)-(*offsetA * *offsetA)));
+	*offsetC = (uint16_t)ceil(degLaneWidth/cos);
 }

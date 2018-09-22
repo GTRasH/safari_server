@@ -96,25 +96,26 @@ void setInsertParam(MYSQL_BIND * bind, uint16_t * region, uint16_t * id,
 
 /** \brief	Berechnet die Lane-Segment und fügt sie in die segments-Table ein
  * 
- * \param[in]	stmt		MYSQL_STMT - Vorbeitetes Update
- * \param[in]	segID		Segment-ID
- * \param[in]	maxLong		Obergrenze Längengrad
- * \param[in]	maxLat		Obergrenze Breitengrad
- * \param[in]	minLong		Untergrenze Längengrad
- * \param[in]	minLat		Untergrenze Breitengrad
- * \param[in]	microDeg	1/100 µGrad entsrechend 1cm
- * \param[in]	laneWidth	Breite der Fahrspur
- * \param[in]	skip		Anzahl der zu überspringenden Segmente
- * \param[in]	nodeLong	Referenzpunkt Längengrad
- * \param[in]	nodeLat		Referenzpunkt Breitengrad
- * \param[in]	offsetX		Offset-Wert in X-Richtung (in cm)
- * \param[in]	offsetY		Offset-Wert in Y-Richtung (in cm)
+ * \param[in]	stmt		 MYSQL_STMT - Vorbeitetes Update
+ * \param[in]	segID		 Segment-ID
+ * \param[in]	maxLong		 Obergrenze Längengrad
+ * \param[in]	maxLat		 Obergrenze Breitengrad
+ * \param[in]	minLong		 Untergrenze Längengrad
+ * \param[in]	minLat		 Untergrenze Breitengrad
+ * \param[in]	microDegLat	 Breitengrad in 1/100 µGrad entsrechend 1cm
+ * \param[in]	microDegLong Längengrad in 1/100 µGrad entsrechend 1cm
+ * \param[in]	laneWidth	 Breite der Fahrspur
+ * \param[in]	skip		 Anzahl der zu überspringenden Segmente
+ * \param[in]	nodeLong	 Referenzpunkt Längengrad
+ * \param[in]	nodeLat		 Referenzpunkt Breitengrad
+ * \param[in]	offsetX		 Offset-Wert in X-Richtung (in cm)
+ * \param[in]	offsetY		 Offset-Wert in Y-Richtung (in cm)
  * 
 */
 void setSegments(MYSQL_STMT * stmt, uint16_t * segID, int * maxLong, 
-				 int * maxLat, int * minLong, int * minLat, double microDeg, 
-				 uint16_t laneWidth, uint8_t skip, int nodeLong, int nodeLat, 
-				 int16_t offsetX, int16_t offsetY);
+				 int * maxLat, int * minLong, int * minLat, double microDegLat,
+				 double microDegLong, uint16_t laneWidth, uint8_t skip, 
+				 int nodeLong, int nodeLat, int offsetX, int offsetY);
 
 /** \brief	Berechnet die Offset-Werte zur weiteren Berechnung der Segmente
  * 
@@ -126,7 +127,7 @@ void setSegments(MYSQL_STMT * stmt, uint16_t * segID, int * maxLong,
  * \param[in]	degNodeGap		Abstand der Knotenpunkte in 1/10 µGrad
  * 
 */
-void setOffsets(uint8_t * offsetA, uint8_t * offsetB, uint8_t *offsetC,
+void setOffsets(uint16_t * offsetA, uint16_t * offsetB, uint16_t *offsetC,
 				double cos, uint16_t degLaneWidth, uint32_t degNodeGap);
 
 /** \brief	Fügt einen Client zur Liste registrierte MSQ-Clients hinzu
