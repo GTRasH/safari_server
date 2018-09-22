@@ -18,7 +18,7 @@
             <long>133432830</long>
             <elevation>340</elevation>
           </refPoint>
-          <laneWidth>300</laneWidth>
+          <laneWidth>600</laneWidth>
           <laneSet>
             <GenericLane>
               <laneID>1</laneID>
@@ -143,8 +143,8 @@
                   <NodeXY>
                     <delta>
                       <node-LatLon>
-                        <lon>133432090</lon>
-                        <lat>525318480</lat>
+                        <lon>133432104</lon>
+                        <lat>525318688</lat>
                       </node-LatLon>
                     </delta>
                     <attributes>
@@ -163,9 +163,25 @@
                   </NodeXY>
                   <NodeXY>
                     <delta>
+                      <node-XY4>
+                        <x>300</x>
+                        <y>2800</y>
+                      </node-XY4>
+                    </delta>
+                  </NodeXY>
+                  <NodeXY>
+                    <delta>
+                      <node-XY5>
+                        <x>300</x>
+                        <y>6300</y>
+                      </node-XY5>
+                    </delta>
+                  </NodeXY>
+                  <NodeXY>
+                    <delta>
                       <node-XY6>
-                        <x>4222</x>
-                        <y>27222</y>
+                        <x>400</x>
+                        <y>17200</y>
                       </node-XY6>
                     </delta>
                   </NodeXY>
@@ -193,8 +209,8 @@
                   <NodeXY>
                     <delta>
                       <node-LatLon>
-                        <lon>133431960</lon>
-                        <lat>525318440</lat>
+                        <lon>133431229</lon>
+                        <lat>525318570</lat>
                       </node-LatLon>
                     </delta>
                     <attributes>
@@ -214,8 +230,8 @@
                   <NodeXY>
                     <delta>
                       <node-XY6>
-                        <x>-27300</x>
-                        <y>6717</y>
+                        <x>-26400</x>
+                        <y>11200</y>
                       </node-XY6>
                     </delta>
                   </NodeXY>
